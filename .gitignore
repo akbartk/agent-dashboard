@@ -1,0 +1,21 @@
+# Rahasia dan config per pemasangan
+.env
+conf/tim.json
+
+# Data runtime (folder dipertahankan lewat .gitkeep)
+db/data/*
+storage/ringkasan/*
+storage/misi/*
+logs/*
+
+# tmp/ diabaikan, tetapi tmp/test dipertahankan (folder induk yang diabaikan tidak bisa diaktifkan lagi per berkas)
+tmp/*
+!tmp/test/
+tmp/test/*
+
+# Cache dan biner hasil build lokal (go build di apps/ menghasilkan apps/agent-dashboard)
+__pycache__/
+*.pyc
+apps/agent-dashboard
+
+!**/.gitkeep

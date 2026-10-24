@@ -1,0 +1,199 @@
+{
+ "versi_skema": "1",
+ "penonton": "jati",
+ "pemilik": "akbar",
+ "koordinator": "ajeng",
+ "cakupan": "order-sendiri",
+ "dibuat_pada": "2026-10-16T15:00:00+07:00",
+ "galat": [],
+ "peringatan": [],
+ "orang": [
+  {
+   "id": "akbar",
+   "nama": "Pak Akbar",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "dicky",
+   "nama": "Mas Dicky",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  },
+  {
+   "id": "jati",
+   "nama": "Mas Jati",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  }
+ ],
+ "agen": [
+  {
+   "id": "ajeng",
+   "nama": "Ajeng",
+   "peran": "Koordinator",
+   "induk": [
+    "dicky",
+    "jati"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": null,
+   "ruang": "koordinasi",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "desy",
+   "nama": "Desy",
+   "peran": "CTO",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "via",
+   "nama": "Via",
+   "peran": "Riset dan peraturan",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:58+07:00",
+   "ruang": "riset",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "alfa",
+   "nama": "Alfa",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "beta",
+   "nama": "Beta",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "carli",
+   "nama": "Carli",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:59+07:00",
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  }
+ ],
+ "tugas_aktif": [
+  {
+   "id": "lock-absensimeeting",
+   "judul": "Rekap kehadiran ke Excel",
+   "project": "absensimeeting",
+   "project_nama": "Absensi Meeting",
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Carli",
+   "pengerja_id": "carli",
+   "mulai": "2026-10-16T14:05:00+07:00",
+   "langkah_terakhir": "mengelola bank dokumen · Absensi Meeting",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "proses-3001",
+   "judul": "Ringkasan regulasi tanda tangan elektronik",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Via",
+   "pengerja_id": "via",
+   "mulai": "2026-10-16T14:30:00+07:00",
+   "langkah_terakhir": "membaca pesan",
+   "langkah_waktu": "2026-10-16T14:59:58+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "ajeng-jati",
+   "judul": "Permintaan lewat Telegram",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Ajeng",
+   "pengerja_id": "ajeng",
+   "mulai": null,
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "jalan"
+  }
+ ],
+ "riwayat_hari_ini": [
+  {
+   "waktu": "2026-10-16T14:05:00+07:00",
+   "pelaku": "carli",
+   "teks": "Carli mulai Absensi Meeting",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:58+07:00",
+   "pelaku": "via",
+   "teks": "Via mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "desy",
+   "teks": "Desy memanggil Carli",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "carli",
+   "teks": "Carli menyetor dokumen ke bank dokumen",
+   "misi": null
+  }
+ ],
+ "ringkasan": {
+  "agen": {
+   "bekerja": 0,
+   "menunggu": 0,
+   "bebas": 0,
+   "sibuk": 6
+  },
+  "misi": {
+   "aktif": 0,
+   "selesai_hari_ini": 0
+  },
+  "subagen_aktif": 0
+ },
+ "misi": []
+}

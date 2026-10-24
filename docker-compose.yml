@@ -1,0 +1,35 @@
+# agent-dashboard. Satu service web; data hanya dari ./storage/ringkasan (ditulis generator di host, ro di sini)
+# dan akun di ./db/data. Bind mount relatif saja, tanpa named volume. Nilai per pemasangan ada di .env (lihat
+# .env.example); config tim di ./conf/tim.json (dibaca web lewat AD_TIM). Operasi: docs/operasi.md.
+# Satu bind port (AD_BIND). Bind kedua (mis. alamat jaringan lain) = berkas override compose milik pemasang,
+# bukan literal di sini.
+name: agent-dashboard
+services:
+  web:
+    build:
+      context: ./apps
+      dockerfile: ../docker/Dockerfile
+    image: "${AD_IMAGE:?isi AD_IMAGE di .env}:${AD_TAG:?isi AD_TAG di .env}"
+    user: "${AD_UID:?isi AD_UID di .env}:${AD_GID:?isi AD_GID di .env}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 64m
+    memswap_limit: 64m
+    cpus: 0.5
+    pids_limit: 64
+    restart: unless-stopped
+    environment:
+      GOMEMLIMIT: 48MiB
+      AD_TIM: /srv/conf/tim.json
+    ports:
+      - "${AD_BIND:?isi AD_BIND di .env}:${AD_PORT:?isi AD_PORT di .env}:8080"
+    volumes:
+      - ./storage/ringkasan:/srv/ringkasan:ro
+      - ./db/data:/srv/db
+      - ./conf/tim.json:/srv/conf/tim.json:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "1m"
+        max-file: "3"

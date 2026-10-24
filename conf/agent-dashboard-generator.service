@@ -1,0 +1,31 @@
+[Unit]
+Description=agent-dashboard: generator ringkasan per penonton (./storage/ringkasan)
+Documentation=file://@AKAR@/docs/operasi.md
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 @AKAR@/script/generator.py
+Restart=always
+RestartSec=5
+# Templat: penanda path project di Documentation/ExecStart diganti oleh script/pasang-generator.sh saat pasang
+# (berkas ini bukan unit siap pakai).
+# Pengerasan: hanya direktif yang terukur efektif pada pengujian tim sumber di user manager (systemd 259,
+# apparmor_restrict_unprivileged_userns=1); belum diuji ulang di host pemasang. ProtectSystem/ProtectHome/
+# ReadWritePaths/PrivateTmp/PrivateNetwork/IPAddressDeny diabaikan diam-diam di user manager itu dan PrivateDevices
+# membuat unit gagal start -> tidak dipakai (debt, lihat docs/operasi.md).
+# RestrictAddressFamilies=none: generator tidak membuat socket apa pun. AF_UNIX dilarang juga karena user pemasang
+# bisa anggota grup docker -> dengan AF_UNIX unit bisa connect ke soket docker. stdout ke journal tetap jalan.
+NoNewPrivileges=yes
+RestrictNamespaces=yes
+RestrictAddressFamilies=none
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+MemoryMax=64M
+CPUQuota=20%
+TasksMax=16
+UMask=0027
+
+[Install]
+WantedBy=default.target

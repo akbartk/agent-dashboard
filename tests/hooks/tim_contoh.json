@@ -1,0 +1,17 @@
+{
+  "_catatan": "Data netral untuk tests/hooks/test_team_activity.py (bukan config pemasangan). Hook hanya membaca koordinator, pemilik, orang, agen.",
+  "versi": 1,
+  "orang": [
+    {"id": "pemilik", "nama": "Pemilik Contoh", "peran": "Pemilik tim", "induk": []}
+  ],
+  "penonton": ["pemilik"],
+  "pemilik": "pemilik",
+  "koordinator": "koord",
+  "cto": "teknis",
+  "agen": {
+    "koord": {"nama": "Koordinator Contoh", "peran": "Koordinator", "induk": ["pemilik"], "ruang": "koordinasi"},
+    "teknis": {"nama": "Teknis Contoh", "peran": "CTO", "induk": ["koord"], "ruang": "teknik"},
+    "satu": {"nama": "Agen Satu", "peran": "Tech Lead", "induk": ["teknis"], "ruang": "teknik"},
+    "dua": {"nama": "Agen Dua", "peran": "Riset", "induk": ["koord"], "ruang": "riset"}
+  }
+}

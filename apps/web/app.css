@@ -1,0 +1,260 @@
+/* Kantor Agen (kontrak tampilan, bagian D). Isi dari stylesheet mockup tampilan; perubahan: font Public Sans
+   self-host, tema lewat data-tema (tema.js, sama dengan v3), warna avatar lewat kelas .t-<indeks> (CSP melarang style= inline),
+   status sibuk (penonton order-sendiri), banner galat, Keluar, dan halaman masuk/ganti password. */
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/aset/font/PublicSans-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/aset/font/PublicSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/aset/font/PublicSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("/aset/font/PublicSans-Bold.woff2") format("woff2"); }
+
+/* Misi sebagai inti: peta kantor mini di atas, papan misi (daftar + detail) di tengah, owner dan peristiwa di bawah.
+   Palet kalem: batu pucat + teal redup (bekerja) + amber lembut (menunggu). Tanpa bayangan; pemisah = langkah nada. */
+:root { --tint-netral: #dce3e8; --av-ink: #23282c; }
+:root, :root[data-tema="terang"] {
+  --ground: #f1f2ef; --floor: #e6e8e3; --room: #f8f9f7; --surface: #ffffff; --hover: #f1f2ef;
+  --line: #dfe3de; --track: #e4e6e3; --ink: #23282c; --muted: #5e656b; --primary: #2b3135; --on-primary: #ffffff;
+  --work: #2c6a78; --work-bg: #e0ecee; --wait: #8a5a12; --wait-mark: #a8732a; --wait-bg: #f4ead8; --wait-ink: #4a3a20;
+  --idle: #5e656b; --idle-mark: #b9bfbc; --idle-bg: #eceeeb; --live: #4e8a6a;
+  color-scheme: light;
+}
+:root[data-tema="gelap"] {
+  --ground: #1a1d1e; --floor: #212526; --room: #272b2d; --surface: #2c3134; --hover: #343a3d;
+  --line: #3a4043; --track: #3a4043; --ink: #e9ecea; --muted: #a5aca9; --primary: #e9ecea; --on-primary: #1a1d1e;
+  --work: #7fb7c3; --work-bg: #24393e; --wait: #e2b874; --wait-mark: #c9964a; --wait-bg: #3a3122; --wait-ink: #eadcc1;
+  --idle: #a5aca9; --idle-mark: #5f6764; --idle-bg: #303537; --live: #7cbf98;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.45 "Public Sans", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+h1, h2, h3, p { margin: 0; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.wrap { max-width: 1440px; margin: 0 auto; padding: 0 32px 40px; }
+.main { display: flex; flex-direction: column; gap: 20px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 18px 0 20px; }
+.brand { display: flex; flex: none; align-items: center; gap: 12px; }
+.brand svg rect { fill: var(--ink); }
+.brand svg path { stroke: var(--ground); stroke-width: 1.8; stroke-linecap: round; }
+.brand div { display: flex; flex-direction: column; }
+.brand strong { font-size: 16px; }
+.brand span { font-size: 12px; color: var(--muted); }
+/* Header satu pita (koreksi 24 Okt 2026, H-3/H-4): brand kiri, kluster rata kanan tidak pernah turun ke bawah brand; bila ruang
+   kurang, ringkasan membungkus di kolomnya sendiri. Jarak kompak bawaan; nilai zip (22/16/12) hanya >= 1440 untuk cakupan semua. */
+.top-right { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; justify-content: flex-end; gap: 8px 16px; color: var(--muted); }
+/* Ringkasan header: tiga kelompok (agen, misi, sub-agen) dipisah garis tipis. */
+.summary { display: flex; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 0; }
+.sg { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 0 12px; border-left: 1px solid var(--line); }
+.sg:first-child { padding-left: 0; border-left: 0; }
+.sg > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sg-l { font-size: 12px; color: var(--muted); }
+.summary b { color: var(--ink); font-weight: 600; }
+@media (min-width: 1440px) {
+  .top:not([data-cakupan="order-sendiri"]) .top-right { gap: 8px 22px; }
+  .top:not([data-cakupan="order-sendiri"]) .sg { gap: 4px 12px; padding: 0 16px; }
+}
+.icon-btn { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); transition: background-color .15s; }
+.icon-btn:hover { background: var(--floor); }
+.icon-btn svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+:root:not([data-tema="gelap"]) .i-sun, :root[data-tema="gelap"] .i-moon { display: none; }
+.live { display: inline-flex; flex: none; align-items: center; gap: 8px; min-height: 28px; white-space: nowrap; }  /* tombol jeda (H-1) */
+.live:hover #stamp { color: var(--ink); }
+.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--live); }
+.live i.paused { background: var(--idle-mark); }
+.link { display: inline-flex; align-items: center; min-height: 28px; color: var(--ink); text-decoration: underline 1px var(--muted); text-underline-offset: 4px; }
+.link:hover { text-decoration-color: var(--ink); }
+/* pengguna: avatar + nama, "Keluar" tepat di bawah nama (rata kiri dengan teks nama) tanpa menambah lebar header (H-2) */
+.pengguna { display: grid; flex: none; }
+.pengguna > * { grid-area: 1 / 1; }
+.me { display: inline-grid; grid-template-columns: 30px auto; grid-template-rows: 20px 24px; column-gap: 8px; line-height: 20px; color: var(--ink); white-space: nowrap; }
+.me .av { grid-row: 1 / span 2; align-self: center; }
+.keluar { display: inline-flex; align-self: end; justify-self: start; margin: 0 0 0 38px; }
+.keluar .link { min-height: 24px; font-size: 12px; color: var(--muted); }
+.av { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; background: var(--tint, var(--tint-netral)); color: var(--av-ink); }
+.av.sm { width: 24px; height: 24px; font-size: 11px; }
+/* Warna avatar per orang/agen (pengganti style="--tint:…" mockup yang diblok CSP). Kelas .t-<indeks mod 10> dipilih app.js
+   dari urutan koordinator, agen, orang di payload. Id di luar urutan memakai --tint-netral. */
+.t-0 { --tint: #e3e6f0; }
+.t-1 { --tint: #e0ece6; }
+.t-2 { --tint: #f1e4df; }
+.t-3 { --tint: #e6e2ee; }
+.t-4 { --tint: #dee8ee; }
+.t-5 { --tint: #e9e8dc; }
+.t-6 { --tint: #e2ebe4; }
+.t-7 { --tint: #dce3e8; }
+.t-8 { --tint: #e7e3da; }
+.t-9 { --tint: #dde5e9; }
+
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 10px; }
+.sec-head > span { font-size: 12px; color: var(--muted); }
+h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 16px; font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.k { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.k.work { background: var(--work); } .k.wait { background: var(--wait-mark); } .k.idle { background: var(--idle-mark); } .k.busy { background: var(--idle); }
+
+/* Banner galat/terputus/basi (perilaku v3: teks tetap, role=alert). */
+.banner { border-radius: 14px; padding: 12px 16px; background: var(--wait-bg); color: var(--wait-ink); font-weight: 600; }
+
+/* Peta kantor mini: ruang berisi agen sebagai chip; cincin avatar = status. */
+.map { background: var(--floor); border-radius: 16px; padding: 14px 16px 16px; }
+.map-rooms { display: flex; flex-wrap: wrap; gap: 10px; }
+.map-room { flex: 1 1 200px; background: var(--room); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.map-room.wide { flex: 3 1 520px; }
+.map-room h3 { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.map-room h3 span { font-weight: 400; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 6px; border-radius: 999px; background: var(--surface); border: 1px solid transparent; min-height: 44px; min-width: 0; max-width: 100%; transition: border-color .15s; }
+.chip:hover { border-color: var(--line); }
+.chip[aria-pressed="true"] { border-color: var(--primary); }
+.chip .av { width: 30px; height: 30px; outline: 2px solid var(--ring, var(--idle-mark)); outline-offset: 1px; }
+.chip.work { --ring: var(--work); } .chip.wait { --ring: var(--wait-mark); } .chip.idle { --ring: var(--idle-mark); } .chip.busy { --ring: var(--idle); }
+.chip > span:not(.av) { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.chip strong { font-size: 13px; }
+.chip small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip.wait small { color: var(--wait); }
+
+.alert { border-radius: 14px; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; background: var(--wait-bg); color: var(--wait-ink); }
+.alert strong { color: var(--wait); }
+.alert span { flex: 1 1 320px; }
+.btn { min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--primary); color: var(--on-primary); font-weight: 600; display: inline-flex; align-items: center; transition: opacity .15s; }
+.btn:hover { opacity: .88; } .btn:active { opacity: .75; }
+.btn:disabled { opacity: .55; cursor: default; }
+
+/* Papan misi: daftar di kiri, detail misi terpilih di kanan. */
+.board { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.list { flex: 1 1 340px; min-width: 0; max-width: 460px; display: flex; flex-direction: column; gap: 20px; }
+/* Misi dan Selesai hari ini: wadah berlatar seperti kartu Kantor. */
+.m-card { background: var(--floor); border-radius: 16px; padding: 14px 16px 16px; }
+.detail { flex: 999 1 560px; min-width: 0; background: var(--surface); border-radius: 16px; padding: 22px 24px; }
+.missions { display: flex; flex-direction: column; gap: 8px; }
+.done-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scrollbar-width: thin; }
+.m-row { display: flex; flex-direction: column; gap: 7px; width: 100%; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid transparent; transition: border-color .15s; }
+.m-row:hover { border-color: var(--line); }
+.m-row[aria-pressed="true"] { border-color: var(--primary); }
+.m-row.done { background: var(--room); }
+.m-row .row { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); }
+.m-row .st { font-weight: 600; color: var(--work); flex: none; }
+.m-row .st.wait { color: var(--wait); } .m-row .st.done { color: var(--muted); }
+.m-row > strong { font-size: 14px; line-height: 1.3; overflow-wrap: anywhere; }
+.m-row .who { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
+.m-row .who > span:last-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.segs { display: flex; gap: 3px; }
+.segs i { flex: 1; height: 4px; border-radius: 2px; background: var(--track); }
+.work .segs .done, .segs.work .done { background: var(--work); } .work .segs .cur, .segs.work .cur { background: var(--work); opacity: .4; }
+.wait .segs .done, .segs.wait .done { background: var(--wait-mark); } .wait .segs .cur, .segs.wait .cur { background: var(--wait-mark); opacity: .4; }
+.m-row.done .segs i { background: var(--idle-mark); }
+
+.d-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px 20px; }
+.d-head > div { min-width: 0; }
+.d-head h2 { font-size: 22px; letter-spacing: -0.01em; line-height: 1.25; overflow-wrap: anywhere; }
+.d-head h2:focus { outline: none; }
+.d-meta { margin-top: 4px; font-size: 13px; color: var(--muted); }
+.pill { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.work { background: var(--work-bg); color: var(--work); }
+.pill.wait { background: var(--wait-bg); color: var(--wait); }
+.pill.done { background: var(--idle-bg); color: var(--idle); }
+/* panel agen (K-3): titik keadaan + label, pesan bergaya empty-state .sub-empty */
+.a-st { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+.a-pesan { margin-top: 18px; }
+.a-pesan + .d-meta { margin-top: 10px; }
+/* Fakta misi: empat pasang label-nilai dalam satu strip bernada. */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1px; margin: 18px 0 0; background: var(--line); border-radius: 12px; overflow: hidden; }
+.facts > div { background: var(--room); padding: 10px 14px; min-width: 0; }
+.facts dt { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.facts dd { margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.facts dd small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.d-callout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--wait-bg); color: var(--wait-ink); }
+.d-callout p { flex: 1 1 280px; font-size: 13px; overflow-wrap: anywhere; }
+.d-acts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.d-acts .link { color: var(--wait-ink); }
+/* Tiga kotak berbatas: langkah, sub-agen, log peristiwa. */
+.d-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 14px; }
+.d-box { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.detail > .d-box { margin-top: 14px; }
+.d-box h3 { font-size: 13px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; padding-bottom: 10px; margin-bottom: 6px; border-bottom: 1px solid var(--idle-bg); }
+.d-box h3 span { font-weight: 400; color: var(--muted); font-size: 12px; }
+.d-log { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; scrollbar-width: thin; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.steps li { display: grid; grid-template-columns: 44px 14px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 32px; color: var(--muted); }
+.steps li > span:first-child, .steps .note { font-size: 12px; color: var(--muted); }
+.steps .dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--idle-mark); background: var(--surface); }
+.steps li.done, .steps li.cur { color: var(--ink); }
+.steps li.done .dot { background: var(--ink); border-color: var(--ink); }
+.steps li.cur { font-weight: 600; }
+.steps li.cur .dot { background: var(--work); border-color: var(--work); }
+.steps li.cur .note { font-weight: 400; }
+.steps li.wait .dot { background: var(--surface); border-color: var(--wait-mark); }
+.steps li.wait .note { color: var(--wait); }
+
+/* Sub-agen: kursi bernomor (spawn ke-n), warna cincin = status. */
+.chair { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex: none; }
+.chair.work { border-color: var(--work); background: var(--work-bg); color: var(--work); }
+.chair.done { border-color: var(--idle-mark); background: var(--idle-bg); color: var(--idle); }
+.chair.new { animation: pop .5s ease-out; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.sub-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 32px; }
+.sub-row span:nth-child(2) { font-size: 13px; min-width: 0; }
+.sub-row small { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.sub-row.work small { color: var(--work); }
+.sub-row.done span:nth-child(2) { color: var(--muted); }
+.sub-empty { margin: 0; font-size: 13px; color: var(--muted); border: 1px dashed var(--idle-mark); border-radius: 12px; padding: 10px 12px; }
+.m-subs { font-size: 12px; color: var(--muted); }
+
+.ev { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 5px 6px; margin: 0 -6px; border-radius: 6px; }
+.ev time { font-size: 12px; color: var(--muted); padding-top: 1px; }
+.ev span { overflow-wrap: anywhere; }
+.ev.fresh { animation: arrive 1.6s ease-out; }
+@keyframes arrive { from { background: var(--work-bg); } to { background: transparent; } }
+
+.lower { display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch; } /* Owner dan Peristiwa sama tinggi */
+.lower > .panel { flex: 1 1 420px; min-width: 0; }
+.panel { background: var(--surface); border-radius: 16px; padding: 18px; }
+.owner-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.owner-head div { display: flex; flex-direction: column; }
+.owner-head small { font-size: 12px; color: var(--muted); }
+.label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.owner-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.ins-list { display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; margin-top: 8px; scrollbar-width: thin; }
+.ins { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px; }
+.ins time { font-size: 12px; color: var(--muted); padding-top: 1px; }
+.ins div { display: flex; flex-direction: column; min-width: 0; }
+.ins span { font-size: 13px; overflow-wrap: anywhere; }
+.ins small { font-size: 13px; color: var(--muted); }
+.ins small.work { color: var(--work); } .ins small.wait { color: var(--wait); }
+.givers { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.giver { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; }
+.giver span:not(.av) { font-size: 12px; color: var(--muted); }
+.more { margin-top: 6px; }
+.empty { color: var(--muted); }
+.note { font-size: 12px; color: var(--muted); }
+
+/* Halaman masuk / ganti password (field dan action sama dengan v3). */
+.masuk { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 32px 16px; }
+.masuk .kartu { width: 100%; max-width: 380px; background: var(--surface); border-radius: 16px; padding: 22px 24px; }
+.masuk h1 { font-size: 22px; margin-bottom: 14px; }
+.masuk form { display: flex; flex-direction: column; gap: 14px; }
+.isian { display: flex; flex-direction: column; gap: 6px; }
+.isian label { font-size: 13px; font-weight: 600; }
+.isian input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--muted); border-radius: 10px; min-height: 44px; padding: 8px 12px; }
+.bantu { font-size: 12px; color: var(--muted); }
+.masuk .btn { justify-content: center; }
+.pesan { color: var(--wait); font-weight: 600; }
+.pesan-js { padding: 16px 32px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .ev.fresh, .chair.new { animation: none; } }
+@media (forced-colors: active) { .m-row[aria-pressed="true"], .chip[aria-pressed="true"] { outline: 2px solid Highlight; } }
+@media (max-width: 900px) { .list { max-width: none; } }
+@media (max-width: 760px) {
+  .wrap { padding: 0 16px 32px; }
+  .top, .top-right { flex-wrap: wrap; }
+  .top-right, .summary { justify-content: flex-start; }
+  .top-right { gap: 6px 16px; }
+  .me { display: none; }
+  .keluar { margin-left: 0; }
+  .detail { padding: 18px; }
+  .d-head h2 { font-size: 19px; }
+  .map { order: 3; } .lower { order: 4; } .note { order: 5; } /* di ponsel, papan misi dibaca lebih dulu */
+}

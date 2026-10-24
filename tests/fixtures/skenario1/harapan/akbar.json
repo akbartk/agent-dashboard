@@ -1,0 +1,399 @@
+{
+ "versi_skema": "1",
+ "penonton": "akbar",
+ "pemilik": "akbar",
+ "koordinator": "ajeng",
+ "cakupan": "semua",
+ "dibuat_pada": "2026-10-16T15:00:00+07:00",
+ "galat": [],
+ "peringatan": [],
+ "orang": [
+  {
+   "id": "akbar",
+   "nama": "Pak Akbar",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "dicky",
+   "nama": "Mas Dicky",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  },
+  {
+   "id": "jati",
+   "nama": "Mas Jati",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  }
+ ],
+ "agen": [
+  {
+   "id": "ajeng",
+   "nama": "Ajeng",
+   "peran": "Koordinator",
+   "induk": [
+    "dicky",
+    "jati"
+   ],
+   "status": "menunggu",
+   "terakhir_aktif": "2026-10-16T14:59:59+07:00",
+   "ruang": "koordinasi",
+   "keadaan": "menunggu",
+   "misi_aktif": []
+  },
+  {
+   "id": "desy",
+   "nama": "Desy",
+   "peran": "CTO",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:59+07:00",
+   "ruang": "teknik",
+   "keadaan": "bekerja",
+   "misi_aktif": []
+  },
+  {
+   "id": "via",
+   "nama": "Via",
+   "peran": "Riset dan peraturan",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:58+07:00",
+   "ruang": "riset",
+   "keadaan": "bekerja",
+   "misi_aktif": []
+  },
+  {
+   "id": "alfa",
+   "nama": "Alfa",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:58+07:00",
+   "ruang": "teknik",
+   "keadaan": "bekerja",
+   "misi_aktif": []
+  },
+  {
+   "id": "beta",
+   "nama": "Beta",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "menunggu",
+   "terakhir_aktif": "2026-10-16T14:20:00+07:00",
+   "ruang": "teknik",
+   "keadaan": "menunggu",
+   "misi_aktif": []
+  },
+  {
+   "id": "carli",
+   "nama": "Carli",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:59+07:00",
+   "ruang": "teknik",
+   "keadaan": "bekerja",
+   "misi_aktif": []
+  }
+ ],
+ "tugas_aktif": [
+  {
+   "id": "lock-policytrack",
+   "judul": "perbaikan statistik",
+   "project": "policytrack",
+   "project_nama": "PolicyTrack",
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Beta",
+   "pengerja_id": "beta",
+   "mulai": "2026-10-15T21:40:00+07:00",
+   "langkah_terakhir": "menulis berkas · PolicyTrack",
+   "langkah_waktu": "2026-10-16T14:20:00+07:00",
+   "status": "menunggu"
+  },
+  {
+   "id": "ajeng-dicky",
+   "judul": "Permintaan lewat Telegram",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Dicky",
+   "pemberi_id": "dicky",
+   "pengerja": "Ajeng",
+   "pengerja_id": "ajeng",
+   "mulai": "2026-10-16T14:52:00+07:00",
+   "langkah_terakhir": "meminta keputusan Mas Dicky",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "menunggu"
+  },
+  {
+   "id": "lock-searchenginebsk",
+   "judul": "Audit indeks campuran",
+   "project": "searchenginebsk",
+   "project_nama": "Search Engine BSK",
+   "pemberi": "Pak Akbar",
+   "pemberi_id": "akbar",
+   "pengerja": "Alfa",
+   "pengerja_id": "alfa",
+   "mulai": "2026-10-16T13:00:00+07:00",
+   "langkah_terakhir": "menjalankan perintah di bskdev · Search Engine BSK",
+   "langkah_waktu": "2026-10-16T14:59:58+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "lock-absensimeeting",
+   "judul": "Rekap kehadiran ke Excel",
+   "project": "absensimeeting",
+   "project_nama": "Absensi Meeting",
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Carli",
+   "pengerja_id": "carli",
+   "mulai": "2026-10-16T14:05:00+07:00",
+   "langkah_terakhir": "mengelola bank dokumen · Absensi Meeting",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "proses-3001",
+   "judul": "Ringkasan regulasi tanda tangan elektronik",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Via",
+   "pengerja_id": "via",
+   "mulai": "2026-10-16T14:30:00+07:00",
+   "langkah_terakhir": "membaca pesan",
+   "langkah_waktu": "2026-10-16T14:59:58+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "proses-2001",
+   "judul": "Perbaikan urutan hasil pencarian",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Dicky",
+   "pemberi_id": "dicky",
+   "pengerja": "Desy",
+   "pengerja_id": "desy",
+   "mulai": "2026-10-16T14:40:00+07:00",
+   "langkah_terakhir": "memanggil TL Carli",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "proses-2002",
+   "judul": null,
+   "project": null,
+   "project_nama": null,
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Desy",
+   "pengerja_id": "desy",
+   "mulai": "2026-10-16T14:45:00+07:00",
+   "langkah_terakhir": "memanggil TL Carli",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "ajeng-akbar",
+   "judul": "Permintaan lewat Telegram",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Pak Akbar",
+   "pemberi_id": "akbar",
+   "pengerja": "Ajeng",
+   "pengerja_id": "ajeng",
+   "mulai": "2026-10-16T14:50:00+07:00",
+   "langkah_terakhir": "membaca pesan",
+   "langkah_waktu": "2026-10-16T14:59:58+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "proses-2003",
+   "judul": null,
+   "project": null,
+   "project_nama": null,
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Desy",
+   "pengerja_id": "desy",
+   "mulai": "2026-10-16T14:55:00+07:00",
+   "langkah_terakhir": "memanggil TL Carli",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "jalan"
+  },
+  {
+   "id": "ajeng-jati",
+   "judul": "Permintaan lewat Telegram",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Ajeng",
+   "pengerja_id": "ajeng",
+   "mulai": null,
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "jalan"
+  }
+ ],
+ "riwayat_hari_ini": [
+  {
+   "waktu": "2026-10-16T09:00:00+07:00",
+   "pelaku": "beta",
+   "teks": "Beta mulai JDIH",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T13:00:00+07:00",
+   "pelaku": "alfa",
+   "teks": "Alfa mulai Search Engine BSK",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T13:00:05+07:00",
+   "pelaku": "alfa",
+   "teks": "Alfa mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:05:00+07:00",
+   "pelaku": "carli",
+   "teks": "Carli mulai Absensi Meeting",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:10:00+07:00",
+   "pelaku": "carli",
+   "teks": "Carli mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:10:00+07:00",
+   "pelaku": "carli",
+   "teks": "Carli mencatat kemajuan",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:20:00+07:00",
+   "pelaku": "beta",
+   "teks": "Beta mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:30:00+07:00",
+   "pelaku": "ajeng",
+   "teks": "Lala (asisten Pak Akbar) mengirim pesan ke Ajeng",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:31:00+07:00",
+   "pelaku": "via",
+   "teks": "Via mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:41:00+07:00",
+   "pelaku": "desy",
+   "teks": "Desy mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:45:10+07:00",
+   "pelaku": "desy",
+   "teks": "Desy mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:50:00+07:00",
+   "pelaku": "ajeng",
+   "teks": "Pak Akbar mengirim pesan ke Ajeng",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:50:30+07:00",
+   "pelaku": "ajeng",
+   "teks": "Ajeng memanggil Desy",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:52:00+07:00",
+   "pelaku": "ajeng",
+   "teks": "Mas Dicky mengirim pesan ke Ajeng",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:58+07:00",
+   "pelaku": "via",
+   "teks": "Via mulai bekerja",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:58+07:00",
+   "pelaku": "ajeng",
+   "teks": "Pak Akbar mengirim pesan ke Ajeng",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:58+07:00",
+   "pelaku": "desy",
+   "teks": "Desy mencatat kemajuan",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "desy",
+   "teks": "Desy memanggil Carli",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "ajeng",
+   "teks": "Ajeng meminta keputusan Mas Dicky",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "carli",
+   "teks": "Carli menyetor dokumen ke bank dokumen",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T15:00:00+07:00",
+   "pelaku": "beta",
+   "teks": "Beta selesai JDIH",
+   "misi": null
+  }
+ ],
+ "ringkasan": {
+  "agen": {
+   "bekerja": 4,
+   "menunggu": 2,
+   "bebas": 0,
+   "sibuk": 0
+  },
+  "misi": {
+   "aktif": 0,
+   "selesai_hari_ini": 0
+  },
+  "subagen_aktif": 0
+ },
+ "misi": []
+}

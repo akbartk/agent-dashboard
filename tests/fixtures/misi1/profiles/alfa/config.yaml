@@ -1,0 +1,3 @@
+model: x
+delegation:
+  oneshot_max_children: 10

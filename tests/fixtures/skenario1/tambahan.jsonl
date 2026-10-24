@@ -1,0 +1,7 @@
+{"role": "tim", "name": "Alfa", "profile": "alfa", "sid": "KANARI-SID-ALFA", "type": "tool", "tool": "terminal", "detail": "ssh -F /opt/data/.ssh/config -o BatchMode=yes bskdev-host 'KANARI-18'", "blocked": false, "ts": "2026-10-16T14:59:58"}
+{"role": "tim", "name": "Via", "profile": "via", "sid": "KANARI-SID-VIA2", "type": "msg", "text": "KANARI-19", "ts": "2026-10-16T14:59:58"}
+{"type": "msg", "role": "owner", "name": "Pak Akbar", "text": "KANARI-20", "ts": "2026-10-16T14:59:58"}
+{"role": "tim", "name": "Desy", "profile": "desy", "sid": "KANARI-SID-DESY2", "type": "tool", "tool": "mcp__obsidian_bsk__catat_progres", "detail": "KANARI-21", "blocked": false, "ts": "2026-10-16T14:59:58"}
+{"role": "tim", "name": "Desy", "profile": "desy", "sid": "KANARI-SID-DESY2", "type": "tool", "tool": "terminal", "detail": "/opt/hermes/.venv/bin/hermes -p carli -z \"$(cat /workspace/brief/KANARI-22.md)\"", "blocked": false, "ts": "2026-10-16T14:59:59"}
+{"type": "tool", "role": "operator", "name": "Mas Dicky", "tool": "clarify", "detail": "KANARI-23", "blocked": false, "ts": "2026-10-16T14:59:59"}
+{"role": "tim", "name": "Carli", "profile": "carli", "sid": "KANARI-SID-CARLI", "type": "tool", "tool": "mcp__obsidian_bsk__setor", "detail": "KANARI-24", "blocked": false, "ts": "2026-10-16T14:59:59"}

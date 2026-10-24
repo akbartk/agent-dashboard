@@ -1,0 +1,233 @@
+{
+ "versi_skema": "1",
+ "penonton": "akbar",
+ "pemilik": "akbar",
+ "koordinator": "ajeng",
+ "cakupan": "semua",
+ "dibuat_pada": "2026-10-16T15:00:00+07:00",
+ "galat": [],
+ "peringatan": [],
+ "orang": [
+  {
+   "id": "akbar",
+   "nama": "Pak Akbar",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "dicky",
+   "nama": "Mas Dicky",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  },
+  {
+   "id": "jati",
+   "nama": "Mas Jati",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  }
+ ],
+ "agen": [
+  {
+   "id": "ajeng",
+   "nama": "Ajeng",
+   "peran": "Koordinator",
+   "induk": [
+    "dicky",
+    "jati"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": "2026-10-16T14:59:59+07:00",
+   "ruang": "koordinasi",
+   "keadaan": "bekerja",
+   "misi_aktif": []
+  },
+  {
+   "id": "desy",
+   "nama": "Desy",
+   "peran": "CTO",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "bebas",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "bebas",
+   "misi_aktif": []
+  },
+  {
+   "id": "via",
+   "nama": "Via",
+   "peran": "Riset dan peraturan",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "bebas",
+   "terakhir_aktif": null,
+   "ruang": "riset",
+   "keadaan": "bebas",
+   "misi_aktif": []
+  },
+  {
+   "id": "alfa",
+   "nama": "Alfa",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "menunggu",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "menunggu",
+   "misi_aktif": []
+  },
+  {
+   "id": "beta",
+   "nama": "Beta",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "menunggu",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "menunggu",
+   "misi_aktif": []
+  },
+  {
+   "id": "carli",
+   "nama": "Carli",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "menunggu",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "menunggu",
+   "misi_aktif": []
+  }
+ ],
+ "tugas_aktif": [
+  {
+   "id": "lock-survei3as",
+   "judul": "Pekerjaan Survei 3AS",
+   "project": "survei3as",
+   "project_nama": "Survei 3AS",
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Alfa",
+   "pengerja_id": "alfa",
+   "mulai": "2026-10-16T08:00:00+07:00",
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "menunggu"
+  },
+  {
+   "id": "lock-ebook-v2",
+   "judul": "Pekerjaan eBook",
+   "project": "ebook-v2",
+   "project_nama": "eBook",
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Alfa",
+   "pengerja_id": "alfa",
+   "mulai": "2026-10-16T10:00:00+07:00",
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "menunggu"
+  },
+  {
+   "id": "lock-jdih-v3",
+   "judul": "Audit tautan",
+   "project": "jdih-v3",
+   "project_nama": "JDIH",
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Beta",
+   "pengerja_id": "beta",
+   "mulai": "2026-10-16T11:00:00+07:00",
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "menunggu"
+  },
+  {
+   "id": "lock-pemahaman-asn",
+   "judul": "Pekerjaan Pemahaman ASN",
+   "project": "pemahaman-asn",
+   "project_nama": "Pemahaman ASN",
+   "pemberi": null,
+   "pemberi_id": null,
+   "pengerja": "Carli",
+   "pengerja_id": "carli",
+   "mulai": "2026-10-16T12:00:00+07:00",
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "menunggu"
+  },
+  {
+   "id": "ajeng-jati",
+   "judul": "Permintaan lewat Telegram",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Jati",
+   "pemberi_id": "jati",
+   "pengerja": "Ajeng",
+   "pengerja_id": "ajeng",
+   "mulai": "2026-10-16T14:59:59+07:00",
+   "langkah_terakhir": "membaca pesan",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "jalan"
+  }
+ ],
+ "riwayat_hari_ini": [
+  {
+   "waktu": "2026-10-16T08:00:00+07:00",
+   "pelaku": "alfa",
+   "teks": "Alfa mulai Survei 3AS",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T10:00:00+07:00",
+   "pelaku": "alfa",
+   "teks": "Alfa mulai eBook",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T11:00:00+07:00",
+   "pelaku": "beta",
+   "teks": "Beta mulai JDIH",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T12:00:00+07:00",
+   "pelaku": "carli",
+   "teks": "Carli mulai Pemahaman ASN",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "ajeng",
+   "teks": "Mas Jati mengirim pesan ke Ajeng",
+   "misi": null
+  }
+ ],
+ "ringkasan": {
+  "agen": {
+   "bekerja": 1,
+   "menunggu": 3,
+   "bebas": 2,
+   "sibuk": 0
+  },
+  "misi": {
+   "aktif": 0,
+   "selesai_hari_ini": 0
+  },
+  "subagen_aktif": 0
+ },
+ "misi": []
+}

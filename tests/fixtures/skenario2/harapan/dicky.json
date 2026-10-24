@@ -1,0 +1,131 @@
+{
+ "versi_skema": "1",
+ "penonton": "dicky",
+ "pemilik": "akbar",
+ "koordinator": "ajeng",
+ "cakupan": "order-sendiri",
+ "dibuat_pada": "2026-10-16T15:00:00+07:00",
+ "galat": [],
+ "peringatan": [],
+ "orang": [
+  {
+   "id": "akbar",
+   "nama": "Pak Akbar",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "dicky",
+   "nama": "Mas Dicky",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  },
+  {
+   "id": "jati",
+   "nama": "Mas Jati",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  }
+ ],
+ "agen": [
+  {
+   "id": "ajeng",
+   "nama": "Ajeng",
+   "peran": "Koordinator",
+   "induk": [
+    "dicky",
+    "jati"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "koordinasi",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "desy",
+   "nama": "Desy",
+   "peran": "CTO",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "bebas",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "bebas",
+   "misi_aktif": []
+  },
+  {
+   "id": "via",
+   "nama": "Via",
+   "peran": "Riset dan peraturan",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "bebas",
+   "terakhir_aktif": null,
+   "ruang": "riset",
+   "keadaan": "bebas",
+   "misi_aktif": []
+  },
+  {
+   "id": "alfa",
+   "nama": "Alfa",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "beta",
+   "nama": "Beta",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "carli",
+   "nama": "Carli",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  }
+ ],
+ "tugas_aktif": [],
+ "riwayat_hari_ini": [],
+ "ringkasan": {
+  "agen": {
+   "bekerja": 0,
+   "menunggu": 0,
+   "bebas": 2,
+   "sibuk": 4
+  },
+  "misi": {
+   "aktif": 0,
+   "selesai_hari_ini": 0
+  },
+  "subagen_aktif": 0
+ },
+ "misi": []
+}

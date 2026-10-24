@@ -1,0 +1,127 @@
+{
+ "_catatan": "DATA uji: config tim sumber (bukan config pemasangan). Path sumber relatif; bantu_tim.tulis_tim() menggantinya dengan path dunia uji.",
+ "versi": 1,
+ "orang": [
+  {
+   "id": "akbar",
+   "nama": "Pak Akbar",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "dicky",
+   "nama": "Mas Dicky",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  },
+  {
+   "id": "jati",
+   "nama": "Mas Jati",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  }
+ ],
+ "penonton": [
+  "akbar",
+  "dicky",
+  "jati"
+ ],
+ "pemilik": "akbar",
+ "koordinator": "ajeng",
+ "cto": "desy",
+ "agen": {
+  "ajeng": {
+   "nama": "Ajeng",
+   "peran": "Koordinator",
+   "induk": [
+    "dicky",
+    "jati"
+   ],
+   "ruang": "koordinasi"
+  },
+  "desy": {
+   "nama": "Desy",
+   "peran": "CTO",
+   "induk": [
+    "ajeng"
+   ],
+   "ruang": "teknik"
+  },
+  "via": {
+   "nama": "Via",
+   "peran": "Riset dan peraturan",
+   "induk": [
+    "ajeng"
+   ],
+   "ruang": "riset"
+  },
+  "uci": {
+   "nama": "Uci",
+   "peran": "QA/QC",
+   "induk": [
+    "ajeng"
+   ],
+   "ruang": "qa"
+  },
+  "alfa": {
+   "nama": "Alfa",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "ruang": "teknik"
+  },
+  "beta": {
+   "nama": "Beta",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "ruang": "teknik"
+  },
+  "carli": {
+   "nama": "Carli",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "ruang": "teknik"
+  }
+ },
+ "sumber": {
+  "activity": "activity.jsonl",
+  "profil": "profiles",
+  "workspace": "workspace",
+  "workspace_kontainer": "/workspace",
+  "brief": "workspace/brief",
+  "lock": "workspace/locks",
+  "handoff": null,
+  "proc": "proc"
+ },
+ "pola": {
+  "brief_nama": "[0-9]{4}-[0-9]{2}-[0-9]{2}-{pelaksana}-(?P<sisa>.+)\\.md",
+  "lock_nama": "[a-z0-9]+(?:-[a-z0-9]+)*",
+  "lock_pemisah_subtugas": null,
+  "peminta": "\\W*Peminta\\b"
+ },
+ "kategori_perintah": [
+  {
+   "pola": "(?s)\\bssh\\b.*\\bbskdev-host\\b",
+   "teks": "menjalankan perintah di bskdev"
+  },
+  {
+   "pola": "(?:^|[\\s'\";(])/(?:ip |interface|routing|system)|\\bR1\\b|(?i:mikrotik|routeros)",
+   "teks": "mengakses R1",
+   "sesudah_panggil": true
+  }
+ ],
+ "tool": {
+  "awalan_bank_dokumen": "mcp__obsidian_bsk__",
+  "catat_progres": "mcp__obsidian_bsk__catat_progres",
+  "setor": "mcp__obsidian_bsk__setor"
+ }
+}

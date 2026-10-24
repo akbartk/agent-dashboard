@@ -1,0 +1,97 @@
+{
+ "_catatan": "DATA uji: config tim sumber (bukan config pemasangan). Path sumber relatif; bantu_tim.tulis_tim() menggantinya dengan path dunia uji.",
+ "versi": 1,
+ "orang": [
+  {
+   "id": "bos",
+   "nama": "Bu Bos",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "wakil",
+   "nama": "Pak Wakil",
+   "peran": "Pemberi order",
+   "induk": [
+    "bos"
+   ]
+  }
+ ],
+ "penonton": [
+  "bos",
+  "wakil"
+ ],
+ "pemilik": "bos",
+ "koordinator": "kepala",
+ "cto": "teknis",
+ "agen": {
+  "kepala": {
+   "nama": "Kepala Kantor",
+   "peran": "Koordinator",
+   "induk": [
+    "bos",
+    "wakil"
+   ],
+   "ruang": "koordinasi"
+  },
+  "teknis": {
+   "nama": "Teknis Utama",
+   "peran": "CTO",
+   "induk": [
+    "kepala"
+   ],
+   "ruang": "teknik"
+  },
+  "t1": {
+   "nama": "Satu",
+   "peran": "Tech Lead",
+   "induk": [
+    "teknis"
+   ],
+   "ruang": "teknik"
+  },
+  "t2": {
+   "nama": "Dua",
+   "peran": "Tech Lead",
+   "induk": [
+    "teknis"
+   ],
+   "ruang": "teknik"
+  },
+  "kualitas": {
+   "nama": "Kualitas",
+   "peran": "QA/QC",
+   "induk": [
+    "kepala"
+   ],
+   "ruang": "qa"
+  }
+ },
+ "sumber": {
+  "activity": "activity.jsonl",
+  "profil": "profiles",
+  "workspace": "workspace",
+  "workspace_kontainer": "/workspace",
+  "brief": "workspace/brief",
+  "lock": "workspace/locks",
+  "handoff": null,
+  "proc": "proc"
+ },
+ "pola": {
+  "brief_nama": "[0-9]{4}-[0-9]{2}-[0-9]{2}-{pelaksana}-(?P<sisa>.+)\\.md",
+  "lock_nama": "[a-z0-9]+(?:-[a-z0-9]+)*",
+  "lock_pemisah_subtugas": null,
+  "peminta": "\\W*Peminta\\b"
+ },
+ "kategori_perintah": [
+  {
+   "pola": "(?s)\\bssh\\b.*\\bgudang-host\\b",
+   "teks": "menjalankan perintah di gudang"
+  }
+ ],
+ "tool": {
+  "awalan_bank_dokumen": null,
+  "catat_progres": null,
+  "setor": null
+ }
+}

@@ -1,0 +1,185 @@
+{
+ "versi_skema": "1",
+ "penonton": "dicky",
+ "pemilik": "akbar",
+ "koordinator": "ajeng",
+ "cakupan": "order-sendiri",
+ "dibuat_pada": "2026-10-16T15:00:00+07:00",
+ "galat": [],
+ "peringatan": [],
+ "orang": [
+  {
+   "id": "akbar",
+   "nama": "Pak Akbar",
+   "peran": "Pemilik tim",
+   "induk": []
+  },
+  {
+   "id": "dicky",
+   "nama": "Mas Dicky",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  },
+  {
+   "id": "jati",
+   "nama": "Mas Jati",
+   "peran": "Pemberi order",
+   "induk": [
+    "akbar"
+   ]
+  }
+ ],
+ "agen": [
+  {
+   "id": "ajeng",
+   "nama": "Ajeng",
+   "peran": "Koordinator",
+   "induk": [
+    "dicky",
+    "jati"
+   ],
+   "status": "menunggu",
+   "terakhir_aktif": "2026-10-16T14:59:59+07:00",
+   "ruang": "koordinasi",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "desy",
+   "nama": "Desy",
+   "peran": "CTO",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "jalan",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "via",
+   "nama": "Via",
+   "peran": "Riset dan peraturan",
+   "induk": [
+    "ajeng"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "riset",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "alfa",
+   "nama": "Alfa",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "beta",
+   "nama": "Beta",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  },
+  {
+   "id": "carli",
+   "nama": "Carli",
+   "peran": "Tech Lead",
+   "induk": [
+    "desy"
+   ],
+   "status": "sibuk",
+   "terakhir_aktif": null,
+   "ruang": "teknik",
+   "keadaan": "sibuk",
+   "misi_aktif": []
+  }
+ ],
+ "tugas_aktif": [
+  {
+   "id": "ajeng-dicky",
+   "judul": "Permintaan lewat Telegram",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Dicky",
+   "pemberi_id": "dicky",
+   "pengerja": "Ajeng",
+   "pengerja_id": "ajeng",
+   "mulai": "2026-10-16T14:52:00+07:00",
+   "langkah_terakhir": "meminta keputusan Mas Dicky",
+   "langkah_waktu": "2026-10-16T14:59:59+07:00",
+   "status": "menunggu"
+  },
+  {
+   "id": "proses-2001",
+   "judul": "Perbaikan urutan hasil pencarian",
+   "project": null,
+   "project_nama": null,
+   "pemberi": "Mas Dicky",
+   "pemberi_id": "dicky",
+   "pengerja": "Desy",
+   "pengerja_id": "desy",
+   "mulai": "2026-10-16T14:40:00+07:00",
+   "langkah_terakhir": null,
+   "langkah_waktu": null,
+   "status": "jalan"
+  }
+ ],
+ "riwayat_hari_ini": [
+  {
+   "waktu": "2026-10-16T09:00:00+07:00",
+   "pelaku": "beta",
+   "teks": "Beta mulai JDIH",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:52:00+07:00",
+   "pelaku": "ajeng",
+   "teks": "Mas Dicky mengirim pesan ke Ajeng",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T14:59:59+07:00",
+   "pelaku": "ajeng",
+   "teks": "Ajeng meminta keputusan Mas Dicky",
+   "misi": null
+  },
+  {
+   "waktu": "2026-10-16T15:00:00+07:00",
+   "pelaku": "beta",
+   "teks": "Beta selesai JDIH",
+   "misi": null
+  }
+ ],
+ "ringkasan": {
+  "agen": {
+   "bekerja": 0,
+   "menunggu": 0,
+   "bebas": 0,
+   "sibuk": 6
+  },
+  "misi": {
+   "aktif": 0,
+   "selesai_hari_ini": 0
+  },
+  "subagen_aktif": 0
+ },
+ "misi": []
+}

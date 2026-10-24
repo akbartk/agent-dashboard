@@ -1,0 +1,46 @@
+{
+ "_catatan": "Contoh config tim (placeholder generik, skema versi 1). Salin ke conf/tim.json lalu isi nilai sebenarnya; kunci berawalan _ diabaikan pembaca. Lokasi dibaca: argumen --tim, variabel AD_TIM, lalu <akar>/conf/tim.json.",
+ "versi": 1,
+ "orang": [
+  {"id": "pemilik", "nama": "Nama Pemilik", "peran": "Pemilik tim", "induk": []}
+ ],
+ "penonton": ["pemilik"],
+ "pemilik": "pemilik",
+ "koordinator": "koordinator",
+ "cto": "cto",
+ "agen": {
+  "koordinator": {"nama": "Nama Koordinator", "peran": "Koordinator", "induk": ["pemilik"], "ruang": "koordinasi"},
+  "cto": {"nama": "Nama CTO", "peran": "CTO", "induk": ["koordinator"], "ruang": "teknik"},
+  "riset": {"nama": "Nama Riset", "peran": "Riset", "induk": ["koordinator"], "ruang": "riset"},
+  "tl-satu": {"nama": "TL Satu", "peran": "Tech Lead", "induk": ["cto"], "ruang": "teknik"},
+  "tl-dua": {"nama": "TL Dua", "peran": "Tech Lead", "induk": ["cto"], "ruang": "teknik"},
+  "qc": {"nama": "Nama QC", "peran": "QA/QC", "induk": ["koordinator"], "ruang": "qa"}
+ },
+ "sumber": {
+  "_catatan": "Path host (bukan path di dalam container). workspace_kontainer = awalan path di lock brief= yang diterjemahkan ke sumber.workspace. handoff belum dibaca generator (boleh null).",
+  "activity": "/path/ke/state/activity.jsonl",
+  "profil": "/path/ke/data/profiles",
+  "workspace": "/path/ke/workspace",
+  "workspace_kontainer": "/workspace",
+  "brief": "/path/ke/workspace/tim/brief",
+  "lock": "/path/ke/workspace/tim/locks",
+  "handoff": null,
+  "proc": "/proc"
+ },
+ "pola": {
+  "_catatan": "brief_nama memuat {pelaksana} dan grup (?P<sisa>...); lock_nama = regex fullmatch nama lock tanpa .lock; lock_pemisah_subtugas null bila tanpa subtugas; peminta = regex re.match per baris header brief.",
+  "brief_nama": "[0-9]{4}-[0-9]{2}-[0-9]{2}-{pelaksana}-(?P<sisa>.+)\\.md",
+  "lock_nama": "[a-z0-9]+(?:-[a-z0-9]+)*",
+  "lock_pemisah_subtugas": null,
+  "peminta": "\\W*Peminta\\b"
+ },
+ "kategori_perintah": [
+  {"pola": "(?s)\\bssh\\b.*\\bhost-contoh\\b", "teks": "menjalankan perintah di host contoh"}
+ ],
+ "tool": {
+  "awalan_bank_dokumen": null,
+  "catat_progres": null,
+  "setor": null
+ },
+ "aktivitas": {"catat_teks": false, "teks_maks": 300, "catat_detail": false, "detail_maks": 1000}
+}
