@@ -204,9 +204,8 @@ h2 { font-size: 16px; font-weight: 600; }
 .sub-row.done span:nth-child(2) { color: var(--muted); }
 .sub-empty { margin: 0; font-size: 13px; color: var(--muted); border: 1px dashed var(--idle-mark); border-radius: 12px; padding: 10px 12px; }
 .m-subs { font-size: 12px; color: var(--muted); }
-/* penanda jenis permintaan, badge QC, dan daftar misi anak */
-.tag, .qc { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; background: var(--idle-bg); color: var(--idle); }
-.tag { background: var(--wait-bg); color: var(--wait); }
+/* badge QC dan daftar misi anak (tag "Permintaan" dihapus 31 Okt 2026: judul card sudah memuatnya) */
+.qc { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; background: var(--idle-bg); color: var(--idle); }
 .qc.ok { background: var(--ok-bg); color: var(--ok); } .qc.bad { background: var(--bad-bg); color: var(--bad); }
 .m-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .d-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }

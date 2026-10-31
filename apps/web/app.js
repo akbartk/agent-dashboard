@@ -76,7 +76,6 @@
   const kuota = m => typeof m.spawn_kuota === 'number' ? m.spawn_kuota : '—';
   const permintaan = m => m.jenis === 'permintaan';  // card permintaan ke koordinator; field baru, tanpa field = pengerja
   const mmss = d => { const t = Math.max(0, Math.round(d)); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
-  const tagJenis = m => permintaan(m) ? h`<span class="tag">Permintaan</span>` : '';
   function badgeQc(m) {
     if (!obj(m.qc) || !m.qc.hasil) { return ''; }
     const r = str(m.qc.hasil);
@@ -197,7 +196,7 @@
     return h`<button class="m-row ${k}" type="button" data-task="${m.id}" data-key="m-${m.id}" aria-pressed="${String(m.id === s.sel)}" aria-label="${m.id + ' ' + judul(m) + ', ' + str(m.pelaksana) + ', ' + labelMisi(m) + (n ? ', ' + n + ' sub-agen aktif' : '') + (permintaan(m) ? ', permintaan' : '') + (obj(m.qc) && m.qc.hasil ? ', QC ' + str(m.qc.hasil) : '')}">
       <span class="row"><span>${m.id} · ${m.pemberi || '—'} · ${jam(m.mulai)}</span><span class="st ${k}">${labelMisi(m)}</span></span>
       <strong>${judul(m)}</strong>
-      ${permintaan(m) || qc ? h`<span class="m-tags">${tagJenis(m)}${qc}${permintaan(m) ? h`<span>${nAnak} misi anak</span>` : ''}</span>` : ''}
+      ${permintaan(m) || qc ? h`<span class="m-tags">${qc}${permintaan(m) ? h`<span>${nAnak} tugas didelegasikan</span>` : ''}</span>` : ''}
       <span class="who">${avAgen(D, m.pelaksana_id, true)}<span><strong>${m.pelaksana}</strong> · ${cur}</span></span>
       <span class="segs" aria-hidden="true">${segs}</span>
       ${subs.length ? h`<span class="m-subs">${n} sub-agen aktif · ${subs.length} dari ${kuota(m)} spawn</span>` : ''}</button>`;
@@ -238,7 +237,7 @@
   // misi anak yang didelegasikan dari permintaan; id yang tidak ada di berkas penonton ini tampil tanpa tautan
   function daftarAnak(D, m) {
     const ids = arr(m.anak).map(str).filter(Boolean);
-    return h`<section class="d-box" aria-label="Misi anak"><h3>Misi anak<span>${ids.length}</span></h3>${ids.length ? ids.map(id => {
+    return h`<section class="d-box" aria-label="Tugas didelegasikan"><h3>Tugas didelegasikan<span>${ids.length}</span></h3>${ids.length ? ids.map(id => {
       const c = misiDari(D, id);
       return c ? h`<button class="anak-row ${jenisMisi(c)}" type="button" data-task="${c.id}" data-key="anak-${c.id}"><strong>${c.id}</strong><span>${judul(c)}</span><small>${labelMisi(c)}</small></button>`
         : h`<div class="anak-row"><strong>${id}</strong><span>(tidak ada di data)</span></div>`;
@@ -289,7 +288,7 @@
       + (typeof j.durasi_detik === 'number' ? ' · ' + mmss(j.durasi_detik) : '') + (j.laporan === true ? ' · laporan ada' : (j.laporan === false ? ' · tanpa laporan' : '')) : '';
     pasang($('detail'), h`<header class="d-head"><div><h2 id="h-detail" tabindex="-1">${judul(m)}</h2>
         <p class="d-meta">${m.id} · ${permintaan(m) ? 'permintaan dari' : 'order dari'} ${m.pemberi || '—'} pukul ${jam(m.mulai)}${induk ? h` · <button class="link" type="button" data-task="${induk}" data-key="d-induk">dari ${induk}</button>` : ''}</p></div>
-        <span class="d-badges">${tagJenis(m)}${badgeQc(m)}<span class="pill ${k}">${labelMisi(m)}</span></span></header>
+        <span class="d-badges">${badgeQc(m)}<span class="pill ${k}">${labelMisi(m)}</span></span></header>
       <dl class="facts">
         <div><dt>Pelaksana</dt><dd>${avAgen(D, m.pelaksana_id, true)}<span>${m.pelaksana} <small>${a.peran || ''}</small></span></dd></div>
         <div><dt>Rantai order</dt><dd>${rantai}</dd></div>
