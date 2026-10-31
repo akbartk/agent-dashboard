@@ -38,8 +38,11 @@ class Dasar(DasarMisi):
     def cari(h, **kv):
         return next((m for m in h["misi"] if all(m.get(k) == v for k, v in kv.items())), None)
 
-    def kartu(self, h, awal):
-        return next(m for m in h["misi"] if m["jenis"] == "permintaan" and m["judul"].startswith(awal))
+    def kartu(self, h, jam, **kv):
+        """Card permintaan menurut jam mulai (HH:MM); judul card seragam, tidak bisa dipakai membedakan."""
+        m = self.cari(h, jenis="permintaan", mulai=f"2026-10-31T{jam}:00+07:00", **kv)
+        assert m is not None, jam
+        return m
 
 
 class TestConfig(unittest.TestCase):
@@ -231,8 +234,8 @@ class TestPanggilTL(Dasar):
 class TestKartuLala(Dasar):
     def test_status_kartu(self):
         d, h = self.mulai()
-        s1, s2 = self.kartu(h, "Tolong jalankan"), self.kartu(h, "Lanjutkan tahap tiga")
-        s3, s7 = self.kartu(h, "Cek status"), self.kartu(h, "Pertanyaan lama")
+        s1, s2 = self.kartu(h, "08:00"), self.kartu(h, "08:30")
+        s3, s7 = self.kartu(h, "08:55"), self.kartu(h, "06:00")
         self.assertEqual(("selesai", "2026-10-31T08:40:00+07:00"), (s1["status"], s1["selesai"]))
         self.assertEqual(("menunggu", "anak"), (s2["status"], s2["alasan"]))
         self.assertEqual(("jalan", None), (s3["status"], s3["selesai"]))
@@ -241,8 +244,9 @@ class TestKartuLala(Dasar):
 
     def test_field_kartu(self):
         d, h = self.mulai()
-        s1 = self.kartu(h, "Tolong jalankan")
-        self.assertTrue(s1["judul"].endswith("…") and len(s1["judul"]) <= 81)
+        s1 = self.kartu(h, "08:00")
+        self.assertEqual("Permintaan Pak Akbar lewat Telegram", s1["judul"])   # isi pesan tidak dikutip
+        self.assertNotIn("Tolong jalankan", json.dumps(h, ensure_ascii=False))   # teks pesan tidak ada di keluaran mana pun
         self.assertEqual(("ajeng", "Ajeng", "akbar", "Pak Akbar", [], None), (
             s1["pelaksana_id"], s1["pelaksana"], s1["pemberi_id"], s1["pemberi"], s1["subagen"], s1["jalan"]))
         self.assertEqual("2026-10-31T08:00:00+07:00", s1["mulai"])
@@ -252,7 +256,7 @@ class TestKartuLala(Dasar):
                 self.assertEqual([], m["anak"])
                 self.assertIn("qc", m)
         self.assertEqual(s1["id"], self.cari(h, project="tahap-satu")["induk_misi"])
-        self.assertEqual(self.kartu(h, "Lanjutkan tahap tiga")["id"], self.cari(h, project="tahap-tiga")["induk_misi"])
+        self.assertEqual(self.kartu(h, "08:30")["id"], self.cari(h, project="tahap-tiga")["induk_misi"])
 
     def test_registri_kunci_sesi(self):
         d, h = self.mulai()
@@ -264,7 +268,7 @@ class TestKartuLala(Dasar):
     def test_filter_penonton(self):
         d = self.buat()
         h = d.siklus()
-        self.assertEqual(["Cek status tahap empat dan tahap lima ya."], [m["judul"] for m in h["dicky"]["misi"]])
+        self.assertEqual(["Permintaan Mas Dicky lewat Telegram"], [m["judul"] for m in h["dicky"]["misi"]])
         self.assertEqual(9, len(h["akbar"]["misi"]))
 
     def test_agen_dan_ringkasan_konsisten(self):
@@ -274,7 +278,7 @@ class TestKartuLala(Dasar):
         self.assertEqual(("jalan", "bekerja"), (ag["beta"]["status"], ag["beta"]["keadaan"]))
         self.assertEqual("menunggu", ag["alfa"]["keadaan"])
         self.assertEqual({"aktif": 5, "selesai_hari_ini": 4}, h["ringkasan"]["misi"])
-        self.assertIn(self.kartu(h, "Cek status")["id"], ag["ajeng"]["misi_aktif"])
+        self.assertIn(self.kartu(h, "08:55")["id"], ag["ajeng"]["misi_aktif"])
 
     def test_kartu_jalan_membuat_koordinator_jalan_walau_diam(self):
         d = self.buat()
@@ -283,11 +287,11 @@ class TestKartuLala(Dasar):
         ag = {a["id"]: a for a in d.siklus()["akbar"]["agen"]}
         self.assertEqual("jalan", ag["ajeng"]["status"])   # baris terakhir 10 menit lalu (> 120 dtk), kartu masih jalan
 
-    def test_tanpa_teks_judul_jam(self):
+    def test_tanpa_teks_judul_sama(self):
         d = self.buat()
         d.tambah_baris({"type": "msg", "role": "owner", "name": "Pak Akbar", "sid": "S8", "ts": "2026-10-31T08:59:00"})
         h = d.siklus()["akbar"]
-        self.assertIsNotNone(self.cari(h, judul="Permintaan 08:59"))
+        self.assertIsNotNone(self.cari(h, judul="Permintaan Pak Akbar lewat Telegram", mulai="2026-10-31T08:59:00+07:00"))
 
 
 def _alat(hms, sid, detail, tool="terminal", nama="Pak Akbar", profil=None):
@@ -302,7 +306,7 @@ class TestAktivitas(Dasar):
 
     def test_kartu_memuat_baris_tool_dipotong(self):
         d, h = self.mulai()
-        a = self.kartu(h, "Tolong jalankan")["aktivitas"]
+        a = self.kartu(h, "08:00")["aktivitas"]
         self.assertEqual(1, len(a))   # hanya baris tool sid S1; sid lain/msg tidak masuk
         self.assertEqual(("2026-10-31T08:00:05+07:00", "terminal"), (a[0]["waktu"], a[0]["tool"]))
         self.assertTrue(a[0]["teks"].endswith("…") and len(a[0]["teks"]) <= 101)
@@ -319,13 +323,13 @@ class TestAktivitas(Dasar):
         d = self.buat()
         d.tambah_baris(_alat("09:00:00", "S3", "kirim ke a@b.id"), _alat("09:00:01", "S3", "nomor 081234567890 x"),
                        _alat("09:00:02", "S3", ""), _alat("09:00:03", "S3", "  spasi \n  rapi  "))
-        a = self.kartu(d.siklus()["akbar"], "Cek status")["aktivitas"]
+        a = self.kartu(d.siklus()["akbar"], "08:55")["aktivitas"]
         self.assertEqual(["(disaring)", "(disaring)", None, "spasi rapi"], [x["teks"] for x in a[1:]])
 
     def test_maks_50_terakhir_urut_naik(self):
         d = self.buat()
         d.tambah_baris(*[_alat(f"09:{i // 60:02d}:{i % 60:02d}", "S3", f"perintah {i}") for i in range(60)])
-        a = self.kartu(d.siklus()["akbar"], "Cek status")["aktivitas"]
+        a = self.kartu(d.siklus()["akbar"], "08:55")["aktivitas"]
         self.assertEqual(50, len(a))
         self.assertEqual("perintah 59", a[-1]["teks"])
         self.assertEqual("perintah 10", a[0]["teks"])
@@ -366,7 +370,7 @@ class TestKartuPerPermintaan(Dasar):
         d = self.buat()
         d.tambah_baris(_msg("08:55:00", "S1", "Permintaan kedua di sesi yang sama."))
         h = d.siklus()["akbar"]
-        lama, baru = self.kartu(h, "Tolong jalankan"), self.kartu(h, "Permintaan kedua")
+        lama, baru = self.kartu(h, "08:00"), self.kartu(h, "08:55", pemberi_id="akbar")
         self.assertEqual(5, self.jml(h))
         self.assertEqual(("selesai", "2026-10-31T08:40:00+07:00"), (lama["status"], lama["selesai"]))
         self.assertEqual(("jalan", None, "2026-10-31T08:55:00+07:00"), (baru["status"], baru["selesai"], baru["mulai"]))
@@ -379,7 +383,7 @@ class TestKartuPerPermintaan(Dasar):
         d.tambah_baris(_msg("08:45:00", "S1", "Tambahan kecil untuk permintaan tadi."))   # 5 mnt sesudah balasan
         h = d.siklus()["akbar"]
         self.assertEqual(4, self.jml(h))
-        s1 = self.kartu(h, "Tolong jalankan")
+        s1 = self.kartu(h, "08:00")
         self.assertEqual(("jalan", None), (s1["status"], s1["selesai"]))   # balasan 08:40 tidak berlaku lagi
 
     def test_msg_tanpa_balasan_tidak_membuka_card_baru(self):

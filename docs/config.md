@@ -239,7 +239,7 @@ Asal path tim: `lockdir`, `handoff_dir`, dan `verdict_dir` dari konfigurasi tim 
 | `tool.awalan_bank_dokumen` | `"mcp__obsidian__"` |
 | `tool.setor` | `"mcp__obsidian__setor"` |
 | `tool.catat_progres` | `null` (tim G7 mencatat langkah di handoff; langkah dibaca generator dari `handoff/<kunci>.md`, `docs/misi.md` B7) |
-| `aktivitas` | bawaan repo `{"catat_teks":false,"teks_maks":300,"catat_detail":false,"detail_maks":1000}`. **Live g7 sejak 31 Okt 2026: `catat_teks` dan `catat_detail` = `true`** (laporan implementer; dibutuhkan judul card permintaan, `docs/misi.md` B9). Nilai `teks_maks`/`detail_maks` live tidak dicatat di dokumen ini. Keputusan privasi tetap milik Pemilik (bagian 3) |
+| `aktivitas` | bawaan repo `{"catat_teks":false,"teks_maks":300,"catat_detail":false,"detail_maks":1000}`. **Live g7 sejak 31 Okt 2026: `catat_teks` dan `catat_detail` = `true`** (laporan implementer; sejak judul card permintaan disamarkan, `text` tidak lagi dipakai untuk judul, `docs/misi.md` B9). Nilai `teks_maks`/`detail_maks` live tidak dicatat di dokumen ini. Keputusan privasi tetap milik Pemilik (bagian 3) |
 
 Ekspresi reguler persis tiap `pola.*` dan `kategori_perintah[].pola` ada di `conf/tim.json` host ini; nama host aplikasi sumber pada
 entri kedua `kategori_perintah` sengaja tidak ditulis di dokumen (nilai config, bukan dokumentasi).

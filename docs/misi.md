@@ -21,7 +21,7 @@ ulang dengan `python3 tests/fixtures/bangun_p15.py`; data fiktif, penanda `KANAR
 > baris tanpa `text` dan `detail` (`aktivitas.catat_teks` dan `catat_detail` bawaan `false`). Akibat pada aturan di dokumen ini
 > bila bawaan itu dipakai: pencocokan B1 (baris 1 `text` dengan header brief) tidak pernah cocok, sehingga tidak ada misi yang
 > terdeteksi dari log; kategori langkah yang membaca `detail` (K1) turun ke nama tool. Menyalakannya = keputusan Pemilik.
-> **Sejak 31 Okt 2026:** judul card permintaan (B9) membutuhkan `catat_teks` = `true`; laporan implementer menyebut
+> **Sejak 31 Okt 2026:** judul card permintaan (B9) tidak lagi memakai `text` (judul samaran, lihat B9); laporan implementer menyebut
 > `catat_teks` dan `catat_detail` live di g7 = `true` (lihat `docs/config.md` bagian 6.3).
 
 ## 1. Sumber yang dibaca (baca saja)
@@ -168,8 +168,9 @@ pengirim pesan pertama card; `pelaksana` = nama koordinator; `mulai` = pesan per
 terakhir (K1, §3.2 skema), `langkah_waktu` = waktu baris itu; `jalan` dan `qc` `null`; `anak` = id misi pengerja yang
 diluncurkan dalam jendela card (dari pesan pertamanya sampai card berikutnya di sid yang sama), urut nomor.
 
-- **Judul** = ±80 karakter pertama pesan pertama, dipotong di batas kata + `…`, disaring §3.7; tanpa teks → `Permintaan HH:MM`.
-  Ini satu-satunya kutipan teks **pesan** yang dimuat generator (teks sudah disamarkan hook); satu-satunya kutipan lain adalah
+- **Judul** = teks samaran tetap `Permintaan <pemberi> lewat Telegram` (mis. `Permintaan Pak Akbar lewat Telegram`), sama
+  untuk semua card pemberi itu; card dibedakan dari `mulai` dan nomor. Isi pesan **tidak** dikutip (keputusan Pemilik, 31 Okt
+  2026; sebelumnya ±80 karakter pertama pesan pertama). Satu-satunya kutipan teks log yang dimuat generator adalah
   `aktivitas` di bawah.
 - **`aktivitas`** (semua misi, pengerja maupun card; sejak 31 Okt 2026): `[{"waktu": ISO WIB, "tool": str, "teks": str | null}]`,
   maks 50 baris tool terakhir, urut waktu naik. Pengerja = baris `type=tool` sid sesi utama misi (bukan sub-agen) dalam rentang

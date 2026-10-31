@@ -178,7 +178,7 @@ Hasil uji yang memakai `tmp/test` dibersihkan sesudahnya; simpan hanya bukti yan
 ## 5. Keputusan terbuka saat pasang (milik Pak Akbar / Arsa)
 
 > Status 31 Okt 2026 (laporan implementer, belum dicek ulang di repo): **Q4** — `catat_teks` dan `catat_detail` live = `true`
-> (dibutuhkan judul card permintaan); keputusan Pemilik tidak tercatat di repo. **Q5** dan **Q6** — belum ada catatan keputusan;
+> (semula untuk judul card permintaan; judul kini samaran tanpa `text`); keputusan Pemilik tidak tercatat di repo. **Q5** dan **Q6** — belum ada catatan keputusan;
 > Q6 dijalankan dengan salinan `tim.json` dan hook di container (lihat `docs/operasi.md`, bagian Hook aktivitas).
 
 | ID | Pertanyaan | Opsi | Rekomendasi (menurut saya) |

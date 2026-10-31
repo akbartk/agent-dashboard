@@ -3,9 +3,9 @@
 
 Membaca log aktivitas, lock, brief, dan /proc (hanya baca), lalu menulis <keluaran>/<penonton>.json tiap siklus.
 Tidak pernah menulis isi text/detail/argv/sid/brief (di luar judul & baris Peminta)/lock (di luar field dipakai).
-Pengecualian sengaja hanya dua kutipan: (1) judul card permintaan koordinator (±80 karakter pertama `text` pesan pertama
-sesi, disaring); (2) `aktivitas` per misi: nama tool + ±100 karakter pertama `detail` baris tool (sudah disamarkan hook,
-disaring lagi dengan `saring`), maks 50 baris terakhir per sesi utama misi / card (deque; log tidak disimpan utuh).
+Pengecualian sengaja hanya satu kutipan: `aktivitas` per misi: nama tool + ±100 karakter pertama `detail` baris tool
+(sudah disamarkan hook, disaring lagi dengan `saring`), maks 50 baris terakhir per sesi utama misi / card (deque; log tidak
+disimpan utuh). Judul card permintaan koordinator tidak mengutip `text` (31 Okt 2026): "Permintaan <pemberi> lewat Telegram".
 Alur tim "P1.5" (31 Okt 2026): brief tanpa H1, status dari handoff/jalan-*.json + lock, riwayat lock permanen, handoff md,
 verdict QC, guard blok, panggilan TL, card permintaan koordinator (docs/misi.md).
 Misi "Kantor Agen" (sejak 24 Okt 2026): docs/misi.md; registri nomor `--nomor`, state.db profil (4 kolom, mode=ro).
@@ -1038,7 +1038,7 @@ class Generator:
         """Card permintaan = satu PERMINTAAN pemberi dalam satu sesi (sid) koordinator (sesi cron `cron_…` tidak dihitung). Msg orang di config membuka card baru
         bila card terakhir sid itu sudah dibalas (reply sesudah msg terakhirnya) dan jeda sejak baris terakhir sesi ≥ DIAM;
         selain itu msg masuk card yang sama dan mereset balasannya. Baris lain masuk card terakhir. Per card dicatat
-        pesan pertama (judul), balasan, baris terakhir, dan peluncuran pengerja (tim_jalankan.py / hermes -p)."""
+        pengirim pesan pertama (judul), balasan, baris terakhir, dan peluncuran pengerja (tim_jalankan.py / hermes -p)."""
         sid = d.get("sid") if isinstance(d.get("sid"), str) else ""
         kartu = self.k_sesi.get(sid)
         s = kartu[-1] if kartu else None
@@ -1052,7 +1052,7 @@ class Generator:
         if s is None:
             kunci = hashlib.sha256(f"{sid}\n{d.get('ts')}".encode("utf-8", "replace")).hexdigest()[:20]  # tanpa sid mentah
             s = {"key": "sesi:" + kunci, "mulai": w, "pemberi": nama, "pemberi_id": rid,
-                 "judul": self._judul_kartu(d.get("text"), w), "reply": None, "kat": None, "luncur": [],
+                 "judul": f"Permintaan {nama} lewat Telegram", "reply": None, "kat": None, "luncur": [],
                  "akt": deque(maxlen=AKT_MAKS)}
             self.k_sesi.setdefault(sid, []).append(s)
         s["akhir"] = w
@@ -1064,16 +1064,6 @@ class Generator:
             s["akt"].append(aktivitas(w, tool, detail))  # jendela card yang sama dengan `luncur`
         if tool in TERMINAL:
             s["luncur"] += self._luncuran(detail, w)  # jendela waktu card: [mulai card, mulai card berikutnya)
-
-    @staticmethod
-    def _judul_kartu(teks, w):
-        """±80 karakter pertama pesan pertama (sudah disamarkan hook, disaring lagi), dipotong di batas kata + "…"."""
-        t = " ".join(teks.split()) if isinstance(teks, str) else ""
-        if not t:
-            return f"Permintaan {w:%H:%M}"
-        if len(t) > 80:
-            t = (t[:80].rsplit(" ", 1)[0] if " " in t[:80] else t[:80]) + "…"
-        return saring(t)
 
     def _luncuran(self, detail, w):
         """[(waktu, pengerja, kunci | None, nama brief | None)] dari perintah koordinator; `detail` hanya dicocokkan."""
