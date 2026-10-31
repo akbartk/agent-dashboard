@@ -19,3 +19,6 @@ __pycache__/
 apps/agent-dashboard
 
 !**/.gitkeep
+
+# Override compose per pemasangan (dibuat script/pasang.sh dari AD_BIND2)
+docker-compose.override.yml
