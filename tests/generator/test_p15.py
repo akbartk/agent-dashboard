@@ -378,6 +378,13 @@ class TestKartuPerPermintaan(Dasar):
         self.assertEqual(2, len(lama["anak"]))
         self.assertEqual([], baru["anak"])   # peluncuran 08:00 ada di jendela card pertama
 
+    def test_balasan_langsung_selesai_tanpa_menunggu_diam(self):
+        d = self.buat()
+        d.tambah_baris(_msg("08:56:00", "S9", "Permintaan singkat."),
+                       {"type": "reply", "role": "owner", "name": "Pak Akbar", "sid": "S9", "ts": "2026-10-31T08:57:00"})
+        k = self.kartu(d.siklus("2026-10-31T08:58:00+07:00")["akbar"], "08:56")   # baru 1 mnt sesudah balasan (< DIAM)
+        self.assertEqual(("selesai", "2026-10-31T08:57:00+07:00"), (k["status"], k["selesai"]))
+
     def test_msg_dalam_jeda_pendek_masuk_card_sama_dan_reset_balasan(self):
         d = self.buat()
         d.tambah_baris(_msg("08:45:00", "S1", "Tambahan kecil untuk permintaan tadi."))   # 5 mnt sesudah balasan

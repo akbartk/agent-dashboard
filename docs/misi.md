@@ -179,9 +179,13 @@ diluncurkan dalam jendela card (dari pesan pertamanya sampai card berikutnya di 
   → `null`. Pengecualian sengaja atas aturan "generator tidak menyalin detail". Memori hanya menyimpan 50 entri terakhir per
   sesi/card (deque). Ikut filter misi per penonton (tidak bocor ke misi penonton lain). Uji: `TestAktivitas` di `test_p15.py`.
 - **Status** (dihitung tiap siklus, `DIAM` = 10 menit, `BASI` = 30 menit; `akhir` = baris terakhir sesi):
-  - `menunggu` + `alasan: "anak"`: diam ≥ 10 menit dan masih ada anak aktif (`jalan`/`menunggu`); `menunggu_misi` = anak aktif itu;
-  - `selesai`: sudah ada balasan koordinator (sesudah pesan terakhir card), diam ≥ 10 menit, dan tidak ada anak aktif; waktu =
-    yang terbaru dari baris terakhir card dan selesai anak;
+  - `menunggu` + `alasan: "anak"`: masih ada anak aktif (`jalan`/`menunggu`) dan sudah dibalas atau diam ≥ 10 menit;
+    `menunggu_misi` = anak aktif itu;
+  - `selesai`: sudah ada balasan koordinator (sesudah pesan terakhir card) dan tidak ada anak aktif, **tanpa menunggu diam**
+    (keputusan Pemilik 31 Okt 2026; sebelumnya diam ≥ 10 menit). Alasannya: baris `reply` = hook `post_llm_call` Hermes yang
+    dipanggil sekali per giliran sesudah loop tool selesai (`agent/turn_finalizer.py`), jadi balasan berarti giliran koordinator
+    sudah tuntas. Pesan susulan dalam 10 menit masuk card yang sama dan membuatnya `jalan` lagi. Waktu = yang terbaru dari
+    baris terakhir card dan selesai anak;
   - `berakhir`: tanpa balasan, tanpa anak aktif, dan diam ≥ 30 menit; waktu = `akhir`;
   - selain itu `jalan`.
   Card `jalan`/`menunggu` selalu dimuat; card `selesai`/`berakhir` hanya bila waktunya hari ini (WIB). Sid yang semua card-nya

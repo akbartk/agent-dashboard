@@ -1584,14 +1584,15 @@ class Generator:
 
     @staticmethod
     def _status_kartu(t, s, anak):
-        """(status, alasan, waktu selesai, anak aktif) satu card: selesai = sudah dibalas + diam ≥ DIAM + semua anak
-        selesai/berakhir (waktu = max(baris terakhir, selesai anak)); menunggu = diam ≥ DIAM tetapi ada anak aktif;
-        berakhir = tanpa balasan, tanpa anak aktif, diam ≥ BASI (waktu = baris terakhir); selain itu jalan."""
+        """(status, alasan, waktu selesai, anak aktif) satu card: selesai = sudah dibalas + semua anak selesai/berakhir
+        (waktu = max(baris terakhir, selesai anak)); menunggu = ada anak aktif dan sudah dibalas atau diam ≥ DIAM;
+        berakhir = tanpa balasan, tanpa anak aktif, diam ≥ BASI (waktu = baris terakhir); selain itu jalan.
+        Balasan langsung = selesai (31 Okt 2026): `reply` = post_llm_call Hermes, sekali per giliran sesudah loop tool."""
         aktif_anak = [r for r in anak if r["status"] in ("jalan", "menunggu")]
         diam = max(0.0, (t - s["akhir"]).total_seconds())
-        if aktif_anak and diam >= DIAM:
+        if aktif_anak and (s["reply"] or diam >= DIAM):
             return "menunggu", "anak", None, aktif_anak
-        if s["reply"] and diam >= DIAM and not aktif_anak:
+        if s["reply"] and not aktif_anak:
             return "selesai", None, max([s["akhir"]] + [r["_sel"] for r in anak if r["_sel"]]), aktif_anak
         if not s["reply"] and diam >= BASI and not aktif_anak:
             return "berakhir", None, s["akhir"], aktif_anak
