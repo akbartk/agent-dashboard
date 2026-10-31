@@ -49,7 +49,7 @@ Turunan Lampiran A `docs/requirement.md` + ADR-001/002/003 tim sumber + brief fa
 | `pemilik`, `koordinator` | (tambahan aditif, KONTRAK §3) selalu ada: id orang `pemilik` dan id agen `koordinator` dari `conf/tim.json`. `versi_skema` tetap `"1"` |
 | `cakupan` | `"semua"` bila `penonton` = `pemilik`, selain itu `"order-sendiri"` |
 | `dibuat_pada` | waktu siklus generator; dasar label "Diperbarui" dan umur data |
-| `galat` | daftar teks tetap (urut abjad, unik), sama di 3 berkas: `Log aktivitas tidak terbaca`, `Daftar proses tidak terbaca`, `Lock tidak terbaca`, `Peta project tidak terbaca`, `Config agen tidak terbaca`, `Folder profil tidak terbaca`. Kosong = normal |
+| `galat` | daftar teks tetap (urut abjad, unik), sama di 3 berkas: `Config agen tidak terbaca`, `Daftar proses tidak terbaca`, `Data sesi tidak terbaca`, `Folder profil tidak terbaca`, `Handoff tim tidak terbaca`, `Lock tidak terbaca`, `Log aktivitas tidak terbaca`, `Log guard tidak terbaca`, `Nomor misi tidak terbaca`, `Peta project tidak terbaca`, `Riwayat lock tidak terbaca`, `Verdict QC tidak terbaca` (daftar lengkap = konstanta `GALAT_*` di `script/generator.py`; `Handoff`/`Riwayat lock`/`Verdict QC`/`Log guard` sejak 31 Okt 2026, lihat §7). Kosong = normal |
 | `peringatan` | (sejak 22 Okt 2026) daftar teks (urut abjad, unik, lewat penyaring §3.7), sama di 3 berkas, selalu ada, tepat sesudah `galat`: `Profil <id> belum ada di conf/tim.json` (agen hadir, termasuk `<koordinator>`, tanpa entri di config yang berlaku) dan `Profil <id> bentrok dengan id tetap, diabaikan` (folder profil bernama sama dengan `koordinator` atau id di `orang`). Bukan galat: tidak masuk `galat`, tidak memicu banner. Penambahan field ini kompatibel; `versi_skema` tetap `"1"` |
 | `orang` | `orang` dari `conf/tim.json` apa adanya (`id`, `nama`, `peran`, `induk`); contoh: `<pemilik>` "Pemilik" "Pemilik tim" `[]`; `<pemberi-1>`, `<pemberi-2>` "Pemberi order" `["<pemilik>"]` |
 | `agen` | agen hadir siklus itu (§3.0), bukan daftar tetap: `<koordinator>` + setiap profil Hermes yang punya `profile.yaml`. Urutan = urutan kunci `agen` di `conf/tim.json` (hanya yang hadir), lalu agen tanpa entri (`<koordinator>` dulu bila tak ber-entri, sisanya urut id). Contoh: `<koordinator>`, `<cto>`, `<anggota-1>`, `<anggota-2>`, `<tl-1>`, `<tl-2>`, `<tl-3>`; peran Koordinator / CTO / Riset / QA / Tech Lead ×3; induk `<koordinator>` = `["<pemilik>"]` (atau pemberi order), `<cto>` dan anggota non-TL `["<koordinator>"]`, TL `["<cto>"]` |
@@ -86,8 +86,13 @@ ringkasan, log, atau stdout.
   induk `["<koordinator>"]` (`<koordinator>` sendiri `[]`), peran = `description` profile.yaml (parser minimal: kutip tunggal dengan `''`,
   kutip ganda dengan `\"`/`\\`, blok `|`/`>`, atau polos + baris lanjutan berindentasi; baris dilipat jadi spasi, spasi
   beruntun jadi satu; kutip tak tertutup / tanpa `description` → kosong) → §3.7 → dipotong 120 karakter (`<koordinator>`: kosong).
-- **Golongan:** TL = agen hadir selain `<cto>` yang induk efektifnya memuat `<cto>`; anggota non-TL = agen hadir selain `<koordinator>`
-  dan TL (contoh: `<cto>`, `<anggota-1>`, `<anggota-2>`). Regex panggil (§3.2) dibangun dari golongan ini tiap siklus (id terpanjang dulu;
+- **Golongan:** TL = agen hadir selain `<cto>` yang induk efektifnya memuat `<cto>`; **sejak 31 Okt 2026 (alur P1.5)**: bila
+  `conf/tim.json` punya kunci `tl` (daftar id), TL = daftar itu ∩ agen yang ada di `agen` (id tak dikenal diabaikan diam-diam), dan
+  aturan induk di atas tidak dipakai. `cto` boleh `null`/tidak ada; tanpa `tl` dan tanpa `cto` tidak ada TL. Anggota non-TL = agen hadir selain `<koordinator>`
+  dan TL (contoh: `<cto>`, `<anggota-1>`, `<anggota-2>`).
+- **`sembunyikan`** (kunci `conf/tim.json`, opsional, sejak 31 Okt 2026): id profil yang tidak tampil di `agen` dan peta
+  (tidak masuk daftar agen, tidak memicu `Profil … belum ada di conf/tim.json`). Profil itu tetap dibaca: lock, tugas, dan misi
+  miliknya tetap masuk berkas bila aktif, dan namanya tetap dipakai di teks peristiwa. Regex panggil (§3.2) dibangun dari golongan ini tiap siklus (id terpanjang dulu;
   golongan kosong → tidak pernah cocok). Teks tampil memakai nama efektif; id dibawa terpisah.
 
 ### 3.1 Log aktivitas
@@ -103,7 +108,9 @@ ringkasan, log, atau stdout.
 ### 3.2 Kategori langkah (tabel K1; `detail` hanya dicocokkan, tidak disalin)
 Bila log dibuat tanpa `detail` (bawaan hook G7, `docs/config.md` bagian `aktivitas`), pola (1)–(4) tidak pernah cocok dan semua baris terminal/execute_code jatuh ke (5) `menjalankan perintah`; tampilan aktivitas menjadi generik (nama tool).
 terminal/execute_code dicek berurutan (pola (1)–(3) dicocokkan lintas baris, `re.S`, agar perintah multi-baris ikut
-terhitung; keputusan CTO 16 Okt 2026): (1) pola `kategori_perintah` di `conf/tim.json` (daftar `{pola, teks}`, dicocokkan berurutan; nilai: `docs/config.md`) → `teks` entri pertama yang cocok (contoh: ssh ke host aplikasi → `menjalankan perintah di <host-app>`); (2) `\bhermes\b.*?\s-p\s+(<id TL>)\b`
+terhitung; keputusan CTO 16 Okt 2026): (1) pola `kategori_perintah` di `conf/tim.json` (daftar `{pola, teks}`, dicocokkan berurutan; nilai: `docs/config.md`) → `teks` entri pertama yang cocok (contoh: ssh ke host aplikasi → `menjalankan perintah di <host-app>`); (1b) **[sejak 31 Okt 2026, alur P1.5]** `tim_jalankan.py --tugas <kunci> <tl> <brief>` (peluncur koordinator): pengerja = argumen
+kedua sesudah `--tugas` (harus id hadir di `agen`); `<tl>` ∈ golongan TL efektif (§3.0) → `memanggil TL <Nama>`, selain itu
+`memanggil <Nama>`; (2) `\bhermes\b.*?\s-p\s+(<id TL>)\b`
 → `memanggil TL <Nama>`; (3) sama untuk id anggota non-TL (§3.0) → `memanggil <Nama>`; (4) RouterOS (di tim sumber ini juga entri `kategori_perintah`): `/ip␠`, `/interface`, `/routing`,
 `/system` yang didahului awal teks/spasi/kutip/`;`/`(` **[lokal: agar `/etc/systemd/system` tidak terhitung]**, atau
 kata `R1` (huruf besar), `mikrotik`/`routeros` (tanpa beda huruf) → `mengakses R1`; (5) selain itu `menjalankan perintah`.
@@ -117,9 +124,12 @@ process_manage → `menunggu proses`; web_search, web_extract, browser_exec → 
 
 ### 3.3 Status agent (ADR-003 butir 3)
 - Semua agen selain `<koordinator>` (TL dan anggota non-TL, §3.0): `jalan` bila ada proses CLI hermes `-p <id>`; else `menunggu` bila
-  memegang ≥ 1 lock sah (§3.4, hanya TL); else `bebas`.
+  memegang ≥ 1 lock sah (§3.4, hanya TL); else `bebas`. **Sejak 31 Okt 2026:** agen tim yang punya misi pengerja `jalan`
+  (`docs/misi.md`) ikut dihitung sebagai `jalan`; misi `menunggu` ikut dihitung sebagai `menunggu` (prioritas: `jalan` dari proses
+  atau misi › `menunggu` dari lock atau misi › `bebas`).
 - `<koordinator>`: `menunggu` bila baris Koordinator terakhir (urutan berkas) = tool `clarify` dan umurnya < 30 menit; else `jalan` bila
-  baris Koordinator terakhir berumur < 2 menit atau ada proses anggota non-TL; else `bebas`. Umur negatif dianggap 0.
+  baris Koordinator terakhir berumur < 2 menit, ada proses anggota non-TL, atau ada card permintaan `jalan` (§7) sementara status
+  sebelumnya `bebas`; else `bebas`. Umur negatif dianggap 0.
 - Proses CLI hermes = salah satu dari 4 argv pertama ber-basename `hermes` atau memuat `hermes_cli.main`; profil = nilai
   sesudah argumen `-p` (sama dengan `tl_kunci.py`). Mulai proses = `btime` (`<proc>/stat`) + field 22 `<proc>/<pid>/stat`
   / `SC_CLK_TCK` (dibulatkan ke bawah, detik). argv hanya dipakai untuk profil dan header `-z`.
@@ -159,13 +169,19 @@ Kosong → null (TL: `Pekerjaan <project_nama>`). Contoh: `# Brief TL — proyek
 |---|---|---|
 | `msg` Koordinator dari R | `<R> mengirim pesan ke Koordinator` (≤ 1 per R per 5 menit) | R |
 | `clarify` Koordinator | `Koordinator meminta keputusan <R>` | R |
-| terminal/execute_code Koordinator berkategori `memanggil <nama anggota non-TL>` | `Koordinator memanggil <nama>` | R |
+| terminal/execute_code Koordinator berkategori `memanggil <nama anggota non-TL>` (sejak 31 Okt 2026 juga `memanggil TL <nama>` dari `tim_jalankan.py --tugas`, §3.2 (1b)) | `Koordinator memanggil <nama>` | R |
 | baris pertama `(profile, sid)` baru, kecuali baris `msg` ber-`sub: true` (boolean) = sesi subagent: sid dicatat dikenal tanpa peristiwa | `<Agent> mulai bekerja[ · <project_nama>]` | pemilik tugas agent |
 | lock sah ber-`mulai=` hari ini | `<TL> mulai <project_nama>` (waktu = `mulai`) | pemilik lock |
 | lock hilang / berganti `tl`/`mulai` (siklus ke-2 dst.) | `<TL> selesai <project_nama>` (waktu = siklus) | pemilik lock (cache) |
 | `catat_progres` | `<Agent> mencatat kemajuan[ · <project_nama>]` | pemilik tugas agent |
 | terminal/execute_code CTO berkategori `memanggil TL <X>` | `<nama CTO> memanggil <nama X>` | pemilik tugas CTO, else pemilik lock X (dari id) |
 | `setor` | `<Agent> menyetor dokumen ke bank dokumen` | pemilik tugas agent |
+| **[P1.5]** riwayat lock permanen `locks/.tim_kunci.riwayat.jsonl`, hanya perintah `kunci` / `selesai` / `lepas` / `alihkan` hari ini, `tl` harus ada di `agen` | `<TL> mulai <proyek>` · `<TL> selesai <proyek>` · `<Koordinator> melepas <proyek>` · `<proyek> dialihkan ke <TL>` | pemilik tim (`pemilik`) |
+| **[P1.5]** `blok` di log guard (`sumber.guard`, hanya keputusan `blok`) | `<Agen> diblok <nama berkas guard>` + ` (<kategori>)` bila kategori aman (`[A-Za-z0-9_-]{1,30}`; argumen, alasan, hash, sid tidak dibaca); peristiwa sama (pelaku + teks) dalam 5 menit hanya satu | pemilik misi agen itu yang aktif **pada waktu peristiwa** (`mulai ≤ waktu ≤ selesai/sekarang`) bila tunggal, selain itu pemilik tim |
+| **[P1.5]** verdict QC yang tertaut ke misi (§misi.md `qc`) | `QC: <hasil> <T-nnn>` (hasil = teks verdict, huruf kecil, ≤ 30 karakter) | pemilik misi |
+
+Peristiwa lock dari riwayat permanen dibuang bila pelaku dan teksnya sama dengan peristiwa lock dari log lock dalam ±30 menit (tanpa
+duplikat). Riwayat permanen dibaca inkremental (offset); berkas yang di-reset/diganti inode dibaca dari awal.
 `pelaku` = `<koordinator>` untuk baris Koordinator (termasuk pesan R), id agent untuk baris tim, TL untuk peristiwa lock. Baris Koordinator
 untuk catat_progres/setor → `Koordinator …`, pemilik R. **Pemilik tugas agent**: hanya pada mode *live* (baris dibaca pada
 siklus ke-2 dst. sesudah log terbaca dari awal) dan bila semua tugas (a)/(b) agent itu punya pemilik yang sama; akhiran
@@ -211,3 +227,20 @@ Tanpa `--sekali`: loop tiap `--interval` dtk (bawaan 3) sampai SIGTERM/SIGINT (k
 Field `ringkasan`, `misi`, `agen[].ruang`/`keadaan`/`misi_aktif`, `riwayat_hari_ini[].misi`, baris riwayat K3, galat
 `Nomor misi tidak terbaca`/`Data sesi tidak terbaca`, argumen `--nomor` (registri nomor misi, bawaan `storage/misi/nomor.json`),
 sumber state.db/config.yaml profil, dan revisi judul §3.5 (bagian `Brief …:`, juga `tugas_aktif[].judul`): lihat `docs/misi.md`.
+
+## 8. Tambahan alur tim "P1.5" (31 Okt 2026; bentuk skema "1" tetap, `versi_skema` tetap `"1"`)
+Koordinator memanggil pengerja langsung lewat `tim_jalankan.py --tugas`; tidak ada CTO di jalur itu. Aturan lengkap: `docs/misi.md`.
+- **`misi[]` field baru** (aditif; UI lama mengabaikannya): `jenis` = `"pengerja"` (misi brief) atau `"permintaan"` (card
+  permintaan koordinator); `anak` = id misi yang didelegasikan (urut nomor; `[]` untuk pengerja); `jalan` = `null` atau
+  `{"status", "rc", "durasi_detik", "laporan"}` (status run `berjalan`/`selesai`/`gagal`/`timeout`/`dihentikan`; `laporan` = berkas
+  laporan peluncur ada dan > 0 byte, isinya tidak dibaca); `qc` = `null` atau `{"hasil", "waktu"}` (verdict QC yang tertaut); `aktivitas` = `[{"waktu","tool","teks"}]` maks 50 baris tool terakhir, `teks` = ±100 karakter pertama `detail` yang disaring (misi.md).
+- **`misi[].alasan`** kosakata (sebelumnya `misi-lain`/`review`/`gantung`): `anak` (card `menunggu` karena misi anak aktif);
+  `gagal`/`timeout`/`dihentikan` (`berakhir`, dari status run); `null` selain itu. `induk_misi` pengerja kini juga terisi
+  dari card koordinator yang meluncurkannya bila tidak ada proses induk.
+- **`misi[].status`** card permintaan: `jalan`, `menunggu`, `selesai`, `berakhir` (aturan di `docs/misi.md`, bagian card).
+- **`riwayat_hari_ini[].teks`** baru: lihat §3.6 (baris `[P1.5]`: lock permanen, `diblok`, `QC:`, `memanggil TL`).
+- **`langkah[].label`** baru dari entri handoff: `Keputusan`, `Sebagian`, `Koreksi` (ditambah ke label §misi.md B7).
+- **Galat baru** (daftar lengkap di §2): `Handoff tim tidak terbaca`, `Riwayat lock tidak terbaca`, `Verdict QC tidak terbaca`,
+  `Log guard tidak terbaca`. Setiap galat sumber hanya dicatat sebagai teks tetap; isi sumber tidak pernah ikut ke log generator.
+- **Config** baru (`docs/config.md`): `tl`, `sembunyikan`, `sumber.verdict`, `sumber.guard`; `cto` opsional; `sumber.handoff` kini dibaca.
+- **Hook**: field `blocked` dihapus dari baris log (Hermes tidak memberi keputusan blok ke hook); sumber blok = log guard (`sumber.guard`).

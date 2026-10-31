@@ -39,9 +39,11 @@ def t(hms, tanggal="2026-10-24"):
 class Misi1:
     """Satu salinan fixture misi1 + Generator-nya."""
 
+    FIXTURE = FIXTURE
+
     def __init__(self, akar, nomor=True, tim=None, buat_db=True):
         self.akar = Path(akar)
-        shutil.copytree(FIXTURE, self.akar, symlinks=True)
+        shutil.copytree(self.FIXTURE, self.akar, symlinks=True)
         tulis_tim(self.akar / "tim.json", self.akar, dasar=self.akar / "tim.json")  # path sumber fixture jadi path dunia uji
         self.langkah = json.loads((self.akar / "langkah.json").read_text(encoding="utf-8"))
         for rel, iso in self.langkah["mtime"].items():
@@ -117,6 +119,18 @@ def riwayat(h):
     return [(r["pelaku"], r["teks"], r["misi"]) for r in h["riwayat_hari_ini"]]
 
 
+def _tanpa_aktivitas(path):
+    """Isi berkas tanpa field `aktivitas` (satu-satunya tempat potongan `detail` tool sengaja dikutip, ≤100 karakter)."""
+    teks = path.read_text(encoding="utf-8")
+    try:
+        data = json.loads(teks)
+    except ValueError:
+        return teks
+    for m in data.get("misi", []) if isinstance(data, dict) else []:
+        m.pop("aktivitas", None)
+    return json.dumps(data, ensure_ascii=False)
+
+
 class DasarMisi(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="uji-misi-")
@@ -133,6 +147,6 @@ class DasarMisi(unittest.TestCase):
             self.assertEqual(0, d.stdout.count("KANARI"), "kanari bocor ke stdout/stderr")
             if d.keluaran.exists():
                 for n in os.listdir(d.keluaran):
-                    self.assertEqual(0, (d.keluaran / n).read_text(encoding="utf-8").count("KANARI"), f"kanari bocor di {n}")
+                    self.assertEqual(0, _tanpa_aktivitas(d.keluaran / n).count("KANARI"), f"kanari bocor di {n}")
             if d.nomor.is_file():
                 self.assertEqual(0, d.nomor.read_text(encoding="utf-8").count("KANARI"), "kanari bocor di registri")

@@ -27,7 +27,13 @@ def tulis_tim(tujuan, akar, dasar=DASAR, agen=None, mentah=None, **ubah):
         tujuan.write_text(mentah, encoding="utf-8")
         return tujuan
     cfg = muat(dasar)
+    s0 = cfg["sumber"]
     cfg["sumber"] = sumber_dunia(akar)
+    for k in ("handoff", "verdict"):  # opsional di fixture (relatif) -> path dunia uji
+        if s0.get(k):
+            cfg["sumber"][k] = str(Path(akar) / s0[k])
+    if s0.get("guard"):
+        cfg["sumber"]["guard"] = [str(Path(akar) / x) for x in s0["guard"]]
     if agen is not None:
         cfg["agen"] = agen
     cfg.update(ubah)

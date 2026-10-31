@@ -12,6 +12,9 @@ Privasi (default tanpa isi): `text` (pesan) dan `detail` (argumen tool) hanya di
 `aktivitas.catat_teks` / `aktivitas.catat_detail` bernilai persis true (boolean). Bila ditulis: rahasia disamarkan DULU,
 baru dipotong `teks_maks` (int 1-2000, bawaan 300) / `detail_maks` (int 1-4000, bawaan 1000).
 
+Tidak ada kunci `blocked`: Hermes menjalankan hook pre_tool_call secara independen (tiap hook hanya menerima payload,
+bukan keputusan hook lain), jadi blok tak bisa diketahui di sini. Sumber blok = log guard (g7-tim-guard.jsonl, qc-gate-g7.jsonl).
+
 Koordinator (profil = tim.json.koordinator): role "owner", name = nama pemilik, tanpa kunci `profile` (generator memakai
 ketiadaan `profile` sebagai penanda baris koordinator). Agen lain: role "tim", name = tim.json.agen[profil].nama.
 """
@@ -125,7 +128,7 @@ def main() -> None:
             entry["sistem"] = True
     elif ev == "pre_tool_call":
         args = p.get("tool_input") if isinstance(p.get("tool_input"), dict) else {}
-        entry.update(type="tool", tool=str(p.get("tool_name") or ""), blocked=False)
+        entry.update(type="tool", tool=str(p.get("tool_name") or ""))  # tanpa `blocked`: hook tidak tahu keputusan guard; lihat log guard
         if catat_detail:
             d = next((args[k] for k in URUTAN_DETAIL if args.get(k)), None)
             d = str(d if d is not None else json.dumps(args, ensure_ascii=False))

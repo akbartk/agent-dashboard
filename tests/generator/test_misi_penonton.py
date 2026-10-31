@@ -11,7 +11,7 @@ from bantu_misi import ID, PENONTON, DasarMisi, agen, misi, riwayat, t
 
 KUNCI_MISI = {"id", "nomor", "judul", "project", "project_nama", "pemberi", "pemberi_id", "pelaksana_id", "pelaksana",
               "rantai", "status", "alasan", "menunggu_misi", "induk_misi", "mulai", "selesai", "langkah", "langkah_total",
-              "langkah_sekarang", "langkah_waktu", "subagen", "spawn_kuota"}
+              "langkah_sekarang", "langkah_waktu", "subagen", "spawn_kuota", "jenis", "anak", "jalan", "qc", "aktivitas"}  # P1.5: 4 field aditif + aktivitas perintah
 
 
 class UjiBentukTambahan(DasarMisi):

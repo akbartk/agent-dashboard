@@ -1,0 +1,6 @@
+{"ts": "2026-10-31T08:00:05+07:00", "perintah": "kunci", "kunci": "tahap-satu", "tl": "alfa", "oleh": "ajeng", "pid": 1}
+{"ts": "2026-10-31T08:19:55+07:00", "perintah": "selesai", "kunci": "tahap-satu", "tl": "alfa", "oleh": "alfa", "pid": 2, "rc": 0}
+{"ts": "2026-10-31T08:20:10+07:00", "perintah": "lepas", "kunci": "tahap-satu", "tl": "alfa", "oleh": "ajeng", "pid": 3}
+{"ts": "2026-10-31T08:35:00+07:00", "perintah": "kunci", "kunci": "tahap-empat", "tl": "alfa", "oleh": "ajeng", "pid": 4}
+{"ts": "2026-10-31T08:50:00+07:00", "perintah": "alihkan", "kunci": "tahap-lima/sub", "tl": "alfa", "oleh": "ajeng", "pid": 5}
+{"ts": "2026-10-30T10:00:00+07:00", "perintah": "kunci", "kunci": "kemarin", "tl": "alfa", "oleh": "ajeng", "pid": 6}

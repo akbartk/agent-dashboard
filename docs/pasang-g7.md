@@ -1,7 +1,12 @@
-# Rencana pasang agent-dashboard di g7 — BELUM DIJALANKAN
+# Pasang agent-dashboard di g7 — SUDAH DIPASANG (31 Okt 2026)
 
-> **Status: RENCANA. Tidak ada satu pun langkah di dokumen ini yang sudah dijalankan.** Dokumen ini hanya mencatat apa yang akan
-> dilakukan nanti. Setiap langkah bertanda **[butuh izin eksplisit Pak Akbar]**: izin diminta per pekerjaan dengan cakupan
+> **Status (31 Okt 2026): sudah terpasang dan berjalan di g7.** Container web berjalan, generator berjalan sebagai unit user,
+> dan hook aktivitas terpasang di semua profil Hermes (laporan implementer; dokumen ini tidak menjalankan ulang uji).
+> Rincian per langkah di bawah. Hasil uji pasca-pasang tidak dicatat ulang di sini; bentuk otomatisnya adalah
+> `script/pasang.sh cek` (`docs/operasi.md`). Konfigurasi live (`conf/tim.json`, `.env`) tidak ada di repo dan tidak diubah
+> oleh dokumen ini.
+>
+> Bagian di bawah dipertahankan sebagai catatan rencana dan keputusan. Setiap langkah bertanda **[butuh izin eksplisit Pak Akbar]**: izin diminta per pekerjaan dengan cakupan
 > persis, tidak berlaku untuk langkah berikutnya. Langkah bertanda **[QC G7-QC]** tergolong Tier A dan memerlukan verdict LULUS
 > G7-QC yang cocok sebelum dieksekusi. `git push` hanya atas perintah eksplisit Pak Akbar (di luar rencana ini).
 
@@ -31,6 +36,9 @@ memecah perintah.
 ## 2. Langkah pasang (urutan)
 
 Urutan: A `.env` → B `tim.json` → C build + compose → D akun web → E generator → F (opsional, terpisah) hook aktivitas.
+Langkah C dan E juga dibungkus `script/pasang.sh` (`cek`, `pasang`, `rollback`; sejak 31 Okt 2026). Langkah D tetap lewat `script/akun.sh`.
+Status per langkah di g7 (31 Okt 2026, laporan implementer): C dan E berjalan (container web dan generator aktif), F terpasang;
+A dan B tersirat oleh container yang berjalan tetapi tidak dicatat eksplisit di dokumen ini; D tidak dicatat di dokumen ini.
 
 ### Langkah A — isi `.env` dari `.env.example` **[butuh izin eksplisit Pak Akbar]**
 
@@ -89,7 +97,7 @@ script/akun.sh daftar                     # nama, wajib_ganti, waktu ubah (tanpa
 
 Akun yang sah hanya id di `penonton`. `script/akun.sh` memilih `docker compose` bila plugin ada, selain itu `docker-compose`
 (dibaca di g7, 25 Okt 2026: baris pemilihan `DC=` di berkas itu); karena plugin tidak ada di g7, yang dipakai `docker-compose`.
-Skrip belum dijalankan. Rollback: hapus `db/data/akun.json` (atas keputusan Pemilik) lalu `docker-compose restart web`.
+Status akun di g7 tidak dicatat di dokumen ini. Rollback: hapus `db/data/akun.json` (atas keputusan Pemilik) lalu `docker-compose restart web`.
 
 ### Langkah E — unit systemd generator lewat `script/pasang-generator.sh` **[butuh izin eksplisit Pak Akbar]**
 
@@ -113,6 +121,8 @@ Rollback: `systemctl disable --now agent-dashboard-generator` (dengan `--user` b
 Hook (`hooks/team-activity.py`) **tidak dipasang** oleh pekerjaan penulisan kode; memasangnya mengubah konfigurasi profil Hermes
 (state agent), jadi Tier A dan butuh verdict LULUS G7-QC yang cocok. Tanpa hook, dashboard tetap tampil tetapi log aktivitas
 tidak terisi (`sumber.activity` bernilai "belum tersedia: hook belum dipasang").
+**Status 31 Okt 2026:** hook terpasang di semua profil Hermes (laporan implementer). Pembaruan isi hook memakai mode `perbarui`
+tanpa mengubah config dan tanpa restart (`docs/operasi.md`, bagian Hook aktivitas). Sumber: `script/pasang-hook.py`.
 
 | Aspek | Isi |
 |---|---|
@@ -126,8 +136,13 @@ tidak terisi (`sumber.activity` bernilai "belum tersedia: hook belum dipasang").
 Path: hook berjalan di container Hermes, sedangkan `conf/tim.json` ada di host `<AKAR>` (keputusan terbuka Q6, bagian 5).
 Pemetaan mount memberi padanan container untuk log (`/data/hermes-agent/data/…` di host = `/opt/data/…` di container); itu turunan
 dari pemetaan mount, belum diverifikasi.
-Rollback: kembalikan konfigurasi profil dari cadangan yang dibuat sebelum langkah ini (cadangan wajib, path dicatat di handoff), atau
-nonaktifkan hook; hapus `activity.jsonl` hanya atas keputusan Pemilik (isinya log).
+Skrip: `script/pasang-hook.py` (dijalankan di container Hermes; cara pakai di docstring berkas itu). Simpan dulu dan cocokkan
+sha256-nya dengan verdict QC, lalu jalankan dengan `HERMES_HOME=<akar data Hermes>` eksplisit (bukan folder profil).
+Rollback dua tahap, JANGAN menyalin balik config dari cadangan (perubahan sah sesudah pasang ikut hilang dan approval penjaga
+bisa lepas): (1) `pasang-hook.py rollback` mencabut entri yang merujuk berkas hook dari config + allowlist semua profil dan
+gagal bila masih ada rujukan; (2) restart gateway dan tunggu sesi `hermes -p` yang masih jalan selesai; (3) `pasang-hook.py
+bersihkan` menghapus salinan hook + tim.json. Berkas hook yang hilang selagi masih terdaftar = python rc 2 = Hermes memblok
+semua `pre_tool_call`, jadi urutan ini wajib. Hapus `activity.jsonl` hanya atas keputusan Pemilik (isinya log).
 
 ## 3. Port dan bind
 
@@ -160,7 +175,11 @@ nonaktifkan hook; hapus `activity.jsonl` hanya atas keputusan Pemilik (isinya lo
 
 Hasil uji yang memakai `tmp/test` dibersihkan sesudahnya; simpan hanya bukti yang perlu.
 
-## 5. Keputusan terbuka saat pasang (milik Pak Akbar / Arsa; belum diputuskan)
+## 5. Keputusan terbuka saat pasang (milik Pak Akbar / Arsa)
+
+> Status 31 Okt 2026 (laporan implementer, belum dicek ulang di repo): **Q4** — `catat_teks` dan `catat_detail` live = `true`
+> (dibutuhkan judul card permintaan); keputusan Pemilik tidak tercatat di repo. **Q5** dan **Q6** — belum ada catatan keputusan;
+> Q6 dijalankan dengan salinan `tim.json` dan hook di container (lihat `docs/operasi.md`, bagian Hook aktivitas).
 
 | ID | Pertanyaan | Opsi | Rekomendasi (menurut saya) |
 |---|---|---|---|
@@ -172,22 +191,26 @@ Hasil uji yang memakai `tmp/test` dibersihkan sesudahnya; simpan hanya bukti yan
 
 | ID | Hal | Catatan |
 |---|---|---|
-| T1 | Jenis unit systemd generator: unit user atau unit sistem | kontrak tidak menetapkan; tim sumber memakai unit user (keputusan Pemilik tim sumber); keputusan g7 belum ada |
-| T2 | Profil mana yang dipasangi hook aktivitas | lihat Langkah F |
+| T1 | Jenis unit systemd generator: unit user atau unit sistem | kontrak tidak menetapkan; tim sumber memakai unit user (keputusan Pemilik tim sumber); keputusan g7 belum ada. Status 31 Okt 2026: generator berjalan sebagai unit user (laporan implementer); keputusan formal belum dicatat |
+| T2 | Profil mana yang dipasangi hook aktivitas | lihat Langkah F. Status 31 Okt 2026: semua profil Hermes (laporan implementer) |
 | T3 | Alamat `AD_BIND` (loopback, LAN, atau Tailscale) | bagian 3 |
 
 ## 7. Belum didukung (celah yang diketahui; tidak dikerjakan di tahap ini, KONTRAK §7)
 
-1. Generator tidak membaca handoff tim G7: langkah TL tidak tampil; `tool.catat_progres` bernilai `null` (`sumber.handoff` belum dibaca).
-2. Peluncuran TL lewat peluncur tim (`tim_jalankan.py`) tidak cocok dengan pola "memanggil TL" (`hermes -p <tl>` di teks perintah);
-   TL tetap terlihat lewat lock dan proses.
-3. Lock g7 yang sudah bertanda `selesai=` tetap ada sampai dilepas; tampil "menunggu" (bukan "selesai") sampai lock dilepas oleh Arsa.
-4. `docker build` dan menjalankan container web belum diuji di g7 (gerbang `hermes-container`); dikerjakan di tahap pasang dengan QC
-   (Langkah C).
+Status celah per 31 Okt 2026 (alur P1.5; rincian di `docs/misi.md` dan `docs/skema-ringkasan.md` §8):
+
+1. ~~Generator tidak membaca handoff~~ **Ditangani:** `sumber.handoff` dibaca (status dari `jalan-*.json`, langkah dari `<kunci>.md`).
+   `tool.catat_progres` tetap `null` (langkah lewat handoff).
+2. ~~Peluncuran TL lewat `tim_jalankan.py` tidak cocok~~ **Ditangani untuk `tim_jalankan.py --tugas`** (memanggil TL/pengerja).
+   Jalur `hermes -p <tl>` tetap seperti semula.
+3. Lock dengan `selesai=`: **ditangani sebagian.** Misi tetap `menunggu` sampai lock dilepas, tetapi alasannya kini `review`
+   (menunggu review), bukan `gantung`.
+4. `docker build` dan container web: **sudah berjalan di g7** (laporan implementer 31 Okt 2026); hasil uji gerbang
+   `hermes-container` tidak dicatat di dokumen ini.
 
 ## 8. Rollback keseluruhan
 
-Urutan dibalik: F (hook; kembalikan konfigurasi profil dari cadangan) → E (unit generator) → D (akun) → C (`docker-compose down`, image
+Urutan dibalik: F (hook; rollback dua tahap di Langkah F) → E (unit generator) → D (akun) → C (`docker-compose down`, image
 opsional) → B (`conf/tim.json`) → A (`.env`). Folder `storage/ringkasan` boleh dihapus; `storage/misi/` (registri nomor misi) hanya
 bila pemasangan dibatalkan seluruhnya (`docs/operasi.md`). Perintah rinci per langkah ada di tiap langkah di atas; semuanya juga butuh
 izin eksplisit Pak Akbar.

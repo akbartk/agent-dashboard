@@ -74,11 +74,20 @@
   const subAktif = m => arr(m.subagen).filter(x => obj(x) && !x.selesai).length;
   const judul = m => (m.judul === null || m.judul === undefined || m.judul === '') ? '(tanpa judul)' : str(m.judul);
   const kuota = m => typeof m.spawn_kuota === 'number' ? m.spawn_kuota : '—';
+  const permintaan = m => m.jenis === 'permintaan';  // card permintaan ke koordinator; field baru, tanpa field = pengerja
+  const mmss = d => { const t = Math.max(0, Math.round(d)); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+  const tagJenis = m => permintaan(m) ? h`<span class="tag">Permintaan</span>` : '';
+  function badgeQc(m) {
+    if (!obj(m.qc) || !m.qc.hasil) { return ''; }
+    const r = str(m.qc.hasil);
+    return h`<span class="qc ${r === 'lulus' ? 'ok' : (r === 'gagal' ? 'bad' : 'netral')}">QC: ${r}</span>`;
+  }
   const jenisMisi = m => m.status === 'jalan' ? 'work' : (m.status === 'menunggu' ? 'wait' : 'done');
   function labelMisi(m) {
     if (m.status === 'jalan') { return 'Langkah ' + (arr(m.langkah).length + 1) + ' dari —'; }
-    if (m.status === 'menunggu') { return {'misi-lain': 'Tertahan', review: 'Menunggu review', gantung: 'Gantung'}[m.alasan] || 'Menunggu'; }
-    return (m.status === 'selesai' ? 'Selesai ' : 'Berakhir ') + jam(m.selesai);
+    if (m.status === 'menunggu') { return {'misi-lain': 'Tertahan', anak: 'Menunggu misi anak', review: 'Menunggu review', gantung: 'Gantung'}[m.alasan] || 'Menunggu'; }
+    const akhir = m.status === 'selesai' ? 'Selesai ' : ({gagal: 'Gagal ', timeout: 'Timeout ', dihentikan: 'Dihentikan '}[m.alasan] || 'Berakhir ');
+    return akhir + jam(m.selesai);
   }
   function keadaan(a) {
     if (KELAS[a.keadaan]) { return a.keadaan; }
@@ -87,7 +96,12 @@
   const ruangDari = a => RUANG.some(r => r[0] === a.ruang) ? a.ruang : 'lain';
   function misiAktifAgen(D, a) { return arr(a.misi_aktif).map(id => misiDari(D, id)).filter(Boolean); }
   // misi anak yang ditunggu (menunggu_misi, urut data) yang ada di berkas; banner D7 dan callout D9 menyebut semuanya
-  function anakMisi(D, m) { return arr(m.menunggu_misi).map(id => misiDari(D, id)).filter(Boolean); }
+  // hanya anak yang masih aktif: pakai menunggu_misi dari generator; bila tidak ada, saring m.anak yang berstatus jalan/menunggu
+  function anakMisi(D, m) {
+    if (Array.isArray(m.menunggu_misi)) { return m.menunggu_misi.map(id => misiDari(D, id)).filter(Boolean); }
+    if (m.alasan !== 'anak') { return []; }
+    return arr(m.anak).map(id => misiDari(D, id)).filter(x => x && (x.status === 'jalan' || x.status === 'menunggu'));
+  }
   // K-2 (koreksi 24 Okt 2026): misi yang dibuka saat chip agen diklik = misi aktif pertama; bila tidak ada, misi non-aktif
   // pelaksana itu dengan `selesai` terbesar (seri: nomor terbesar), dihitung eksplisit; tanpa misi pelaksana → null (panel agen)
   const banding = (x, y) => (x < y ? -1 : (x > y ? 1 : 0));
@@ -143,6 +157,7 @@
     if (k === 'bekerja') { return m0 ? h`${m0.id} · ${sejak(m0.mulai)}${ekor}` : h`bekerja${ekor}`; }
     if (k === 'menunggu') {
       if (m0 && m0.alasan === 'misi-lain' && arr(m0.menunggu_misi).length) { return h`tunggu ${m0.menunggu_misi[0]}${ekor}`; }
+      if (m0 && m0.alasan === 'anak') { return h`menunggu misi anak${ekor}`; }
       return h`${m0 && m0.alasan === 'review' ? 'menunggu review' : 'menunggu'}${ekor}`;
     }
     return h`${k}${ekor}`;
@@ -176,11 +191,13 @@
   /* ---------- daftar misi (D8) ---------- */
   function baris(D, m) {
     const k = jenisMisi(m), n = subAktif(m), subs = arr(m.subagen), L = arr(m.langkah).length;
-    const cur = m.alasan === 'misi-lain' && arr(m.menunggu_misi).length ? 'menunggu ' + m.menunggu_misi[0] : (str(m.langkah_sekarang) || '—');
+    const cur = m.alasan === 'misi-lain' && arr(m.menunggu_misi).length ? 'menunggu ' + m.menunggu_misi[0] : (m.alasan === 'anak' ? 'menunggu misi anak' : (str(m.langkah_sekarang) || '—'));
+    const nAnak = arr(m.anak).length, qc = badgeQc(m);
     const segs = h`${Array.from({length: L}, () => h`<i class="done"></i>`)}${aktif(m) ? h`<i class="cur"></i>` : ''}`;
-    return h`<button class="m-row ${k}" type="button" data-task="${m.id}" data-key="m-${m.id}" aria-pressed="${String(m.id === s.sel)}" aria-label="${m.id + ' ' + judul(m) + ', ' + str(m.pelaksana) + ', ' + labelMisi(m) + (n ? ', ' + n + ' sub-agen aktif' : '')}">
+    return h`<button class="m-row ${k}" type="button" data-task="${m.id}" data-key="m-${m.id}" aria-pressed="${String(m.id === s.sel)}" aria-label="${m.id + ' ' + judul(m) + ', ' + str(m.pelaksana) + ', ' + labelMisi(m) + (n ? ', ' + n + ' sub-agen aktif' : '') + (permintaan(m) ? ', permintaan' : '') + (obj(m.qc) && m.qc.hasil ? ', QC ' + str(m.qc.hasil) : '')}">
       <span class="row"><span>${m.id} · ${m.pemberi || '—'} · ${jam(m.mulai)}</span><span class="st ${k}">${labelMisi(m)}</span></span>
       <strong>${judul(m)}</strong>
+      ${permintaan(m) || qc ? h`<span class="m-tags">${tagJenis(m)}${qc}${permintaan(m) ? h`<span>${nAnak} misi anak</span>` : ''}</span>` : ''}
       <span class="who">${avAgen(D, m.pelaksana_id, true)}<span><strong>${m.pelaksana}</strong> · ${cur}</span></span>
       <span class="segs" aria-hidden="true">${segs}</span>
       ${subs.length ? h`<span class="m-subs">${n} sub-agen aktif · ${subs.length} dari ${kuota(m)} spawn</span>` : ''}</button>`;
@@ -218,6 +235,15 @@
         <p class="d-meta">${a.peran && str(a.peran).trim().toLowerCase() !== ruang.trim().toLowerCase() ? str(a.peran) + ' · ' : ''}${ruang}</p></div><span class="a-st"><i class="k ${KELAS[k]}"></i>${LABEL_KEADAAN[k]}</span></header>
       <p class="sub-empty a-pesan">${PESAN_KEADAAN[k]}</p>${akhir ? h`<p class="d-meta">${akhir}</p>` : ''}`);
   }
+  // misi anak yang didelegasikan dari permintaan; id yang tidak ada di berkas penonton ini tampil tanpa tautan
+  function daftarAnak(D, m) {
+    const ids = arr(m.anak).map(str).filter(Boolean);
+    return h`<section class="d-box" aria-label="Misi anak"><h3>Misi anak<span>${ids.length}</span></h3>${ids.length ? ids.map(id => {
+      const c = misiDari(D, id);
+      return c ? h`<button class="anak-row ${jenisMisi(c)}" type="button" data-task="${c.id}" data-key="anak-${c.id}"><strong>${c.id}</strong><span>${judul(c)}</span><small>${labelMisi(c)}</small></button>`
+        : h`<div class="anak-row"><strong>${id}</strong><span>(tidak ada di data)</span></div>`;
+    }) : h`<p class="sub-empty">Belum ada misi yang didelegasikan.</p>`}</section>`;
+  }
   function renderDetail(D, segar) {
     const ag = s.agenSel ? agen(D, s.agenSel) : null;
     if (ag) { renderAgen(D, ag); return; }
@@ -231,7 +257,7 @@
       if (m.status === 'jalan') {
         steps.push(h`<li class="cur"><span>—</span><span class="dot"></span><span>${m.langkah_sekarang || '—'}</span><span class="note">berjalan ${sejak(dari)}</span></li>`);
       } else {
-        const nota = m.alasan === 'misi-lain' ? (arr(m.menunggu_misi).length ? 'menunggu ' + m.menunggu_misi[0] : 'menunggu') : (m.alasan === 'review' ? 'menunggu review' : 'gantung');
+        const nota = m.alasan === 'anak' ? 'menunggu misi anak' : m.alasan === 'misi-lain' ? (arr(m.menunggu_misi).length ? 'menunggu ' + m.menunggu_misi[0] : 'menunggu') : (m.alasan === 'review' ? 'menunggu review' : 'gantung');
         steps.push(h`<li class="cur wait"><span>—</span><span class="dot"></span><span>${m.langkah_sekarang || '—'}</span><span class="note">${nota}</span></li>`);
       }
     }
@@ -245,7 +271,7 @@
         <small>${x.selesai ? 'selesai ' + jam(x.selesai) : h`bekerja · ${sejak(x.mulai)}`}</small></div>`)}`;
     }
     let note = '';
-    const anak = m.status === 'menunggu' && m.alasan === 'misi-lain' ? anakMisi(D, m) : [];
+    const anak = m.status === 'menunggu' && (m.alasan === 'misi-lain' || m.alasan === 'anak') ? anakMisi(D, m) : [];
     const penunggu = daftarMisi(D).find(x => aktif(x) && arr(x.menunggu_misi).includes(m.id));
     if (anak.length) {
       note = h`<div class="d-callout"><p>Tertahan: menunggu ${anak.map((c, i) => h`${i ? '; ' : ''}${c.pelaksana} menyelesaikan ${c.id} (${judul(c)}), sudah ${sejak(c.mulai)}`)}.</p>
@@ -257,21 +283,38 @@
     const evs = arr(D.riwayat_hari_ini).map((r, i) => [r, i]).filter(x => obj(x[0]) && x[0].misi === m.id).reverse();
     const sa = m.subagen === null || m.subagen === undefined ? '—' : h`${subAktif(m)} aktif <small>· ${arr(m.subagen).length} dari ${kuota(m)} spawn</small>`;
     const rantai = arr(m.rantai).map(x => nama(D, x)).join(' → ') || '—';
+    const induk = m.induk_misi ? str(m.induk_misi) : '';
+    const j = obj(m.jalan) ? m.jalan : null, qcInfo = obj(m.qc) && m.qc.hasil ? m.qc : null;
+    const jalan = j ? str(j.status) + (j.rc !== null && j.rc !== undefined && Number(j.rc) !== 0 ? ' · rc ' + str(j.rc) : '')
+      + (typeof j.durasi_detik === 'number' ? ' · ' + mmss(j.durasi_detik) : '') + (j.laporan === true ? ' · laporan ada' : (j.laporan === false ? ' · tanpa laporan' : '')) : '';
     pasang($('detail'), h`<header class="d-head"><div><h2 id="h-detail" tabindex="-1">${judul(m)}</h2>
-        <p class="d-meta">${m.id} · order dari ${m.pemberi || '—'} pukul ${jam(m.mulai)}</p></div><span class="pill ${k}">${labelMisi(m)}</span></header>
+        <p class="d-meta">${m.id} · ${permintaan(m) ? 'permintaan dari' : 'order dari'} ${m.pemberi || '—'} pukul ${jam(m.mulai)}${induk ? h` · <button class="link" type="button" data-task="${induk}" data-key="d-induk">dari ${induk}</button>` : ''}</p></div>
+        <span class="d-badges">${tagJenis(m)}${badgeQc(m)}<span class="pill ${k}">${labelMisi(m)}</span></span></header>
       <dl class="facts">
         <div><dt>Pelaksana</dt><dd>${avAgen(D, m.pelaksana_id, true)}<span>${m.pelaksana} <small>${a.peran || ''}</small></span></dd></div>
         <div><dt>Rantai order</dt><dd>${rantai}</dd></div>
         <div><dt>${akt ? 'Berjalan' : 'Total waktu'}</dt><dd>${akt ? sejak(m.mulai) : durasi(m.mulai, m.selesai)}</dd></div>
         <div><dt>Sub-agen</dt><dd>${sa}</dd></div>
+        ${j ? h`<div><dt>Run</dt><dd>${jalan}</dd></div>` : ''}
+        ${qcInfo ? h`<div><dt>QC</dt><dd>${str(qcInfo.hasil)}${qcInfo.waktu ? ' · ' + jam(qcInfo.waktu) : ''}</dd></div>` : ''}
       </dl>
       ${note}
+      ${permintaan(m) || arr(m.anak).length ? daftarAnak(D, m) : ''}
       <div class="d-grid">
         <section class="d-box" aria-label="Langkah"><h3>Langkah<span>${L.length + (akt ? 1 : 0)} dari —</span></h3><ol class="steps">${steps}</ol></section>
         <section class="d-box" aria-label="Sub-agen"><h3>Sub-agen<span>nomor = spawn ke-n</span></h3>${subs}</section>
       </div>
+      ${Array.isArray(m.aktivitas) ? aktivitasPerintah(m.aktivitas) : ''}
       <section class="d-box"><h3 id="lbl-log">Peristiwa misi ini<span>${evs.length}</span></h3>
         <div class="d-log" tabindex="0" role="region" aria-labelledby="lbl-log" data-key="d-log">${evs.map(x => peristiwa(D, x[0], segar.has(x[1])))}</div></section>`);
+  }
+
+  /* ---------- aktivitas perintah: ≤50 baris tool terakhir misi (waktu naik di data; tampil terbaru di atas seperti peristiwa) ---------- */
+  function aktivitasPerintah(daftar) {
+    const L = daftar.filter(obj).reverse();
+    return h`<section class="d-box"><h3 id="lbl-akt">Aktivitas perintah<span>${L.length}</span></h3>
+      ${L.length ? h`<div class="d-log" tabindex="0" role="region" aria-labelledby="lbl-akt" data-key="d-akt">${L.map(x => h`<div class="akt"><time>${jamDetik(x.waktu)}</time><b>${str(x.tool)}</b><code>${str(x.teks)}</code></div>`)}</div>`
+        : h`<p class="empty">Belum ada aktivitas tercatat.</p>`}</section>`;
   }
 
   /* ---------- panel pemilik (D10): hanya dirender bila penonton = D.pemilik ---------- */

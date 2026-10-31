@@ -11,7 +11,9 @@ dan misi per agen. Dua bagian:
 Identitas tim, daftar agen, jalur sumber data, dan pola nama dibaca dari satu berkas config `conf/tim.json`, tanpa nilai tetap di kode
 (`docs/config.md`). Project ini adalah hasil port ke host g7; dokumen di `docs/` diturunkan dari dokumen tim sumber dan disamarkan.
 
-> Status: kode dan dokumen disiapkan; **pemasangan belum dijalankan** (`docs/pasang-g7.md` hanya rencana).
+> Status (31 Okt 2026): **sudah terpasang dan berjalan di g7** (container web, generator sebagai unit user, dan hook aktivitas di
+> semua profil Hermes). Rincian dan langkah yang tercatat: `docs/pasang-g7.md`; pemasangan lewat `script/pasang.sh`, hook lewat
+> `script/pasang-hook.py`.
 
 ## Struktur folder
 
@@ -22,9 +24,9 @@ Identitas tim, daftar agen, jalur sumber data, dan pola nama dibaca dari satu be
 ├─ docker/                    # Dockerfile image web
 ├─ db/{data,migrations,seeds} # data akun (db/data/akun.json, 0600)
 ├─ docs/                      # dokumentasi (daftar di bawah)
-├─ hooks/                     # hook aktivitas (tidak dipasang oleh repo ini)
+├─ hooks/                     # hook aktivitas (disalin ke profil Hermes oleh script/pasang-hook.py, bukan oleh repo ini)
 ├─ logs/
-├─ script/                    # generator.py, pasang-generator.sh, akun.sh
+├─ script/                    # generator.py, pasang.sh, pasang-generator.sh, pasang-hook.py, akun.sh
 ├─ storage/                   # ringkasan/ (keluaran generator), misi/ (registri nomor misi)
 ├─ tests/                     # generator/, hooks/, ui/, fixtures/
 ├─ tmp/test/                  # sisa uji; dibersihkan, hanya .gitkeep
@@ -47,15 +49,16 @@ docker-compose --env-file .env.example config -q                              # 
 GOTOOLCHAIN=local go test -count=1 ./...
 ```
 
-Fixture tes generator memakai data tim sumber sebagai DATA uji (di `tests/fixtures/`), bukan di `conf/`.
+Fixture tes generator memakai data tim sumber sebagai DATA uji (di `tests/fixtures/`), bukan di `conf/`. Fixture alur P1.5
+(`tests/fixtures/p15`, data fiktif) dibangun ulang dengan `python3 tests/fixtures/bangun_p15.py` dan dipakai `tests/generator/test_p15.py`.
 
 ## Dokumentasi
 
 | Berkas | Isi |
 |---|---|
 | [docs/config.md](./docs/config.md) | semua kunci `conf/tim.json`, env `AD_*` dan `TEAM_ACTIVITY_LOG`, privasi log (`aktivitas`), nilai pemasangan g7 |
-| [docs/pasang-g7.md](./docs/pasang-g7.md) | rencana pasang di g7 (belum dijalankan), uji pasca-pasang, keputusan terbuka, rollback |
-| [docs/operasi.md](./docs/operasi.md) | operasi harian: komponen, status, akun, restart, rollback, pengerasan |
+| [docs/pasang-g7.md](./docs/pasang-g7.md) | pemasangan di g7 (sudah dipasang 31 Okt 2026), uji pasca-pasang, keputusan terbuka, rollback |
+| [docs/operasi.md](./docs/operasi.md) | operasi harian: komponen, status, akun, restart, hook aktivitas (perbarui), rollback, pengerasan |
 | [docs/skema-ringkasan.md](./docs/skema-ringkasan.md) | kontrak JSON ringkasan per penonton dan aturan generator |
 | [docs/misi.md](./docs/misi.md) | aturan misi "Kantor Agen" (nomor misi, status, isolasi) |
 | [docs/requirement.md](./docs/requirement.md) | requirement, keputusan, keamanan, dan pertanyaan terbuka (dokumen tim sumber, disamarkan) |

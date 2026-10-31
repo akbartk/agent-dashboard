@@ -1,0 +1,34 @@
+{
+ "versi": 1,
+ "final": true,
+ "mulai": "2026-10-31T08:00:10+07:00",
+ "selesai": "2026-10-31T08:20:30+07:00",
+ "tugas": [
+  {
+   "kunci": "tahap-satu",
+   "tl": "alfa",
+   "brief": "/workspace/brief/2026-10-31-tahap-satu-a.md",
+   "pid": 100,
+   "laporan": "/workspace/handoff/tahap-satu.laporan-20261031T080000.txt",
+   "mulai": "2026-10-31T08:00:10+07:00",
+   "selesai": "2026-10-31T08:20:00+07:00",
+   "durasi_detik": 60.0,
+   "rc": 0,
+   "status": "selesai",
+   "tandai": "ok"
+  },
+  {
+   "kunci": "tahap-dua",
+   "tl": "beta",
+   "brief": "/workspace/brief/2026-10-31-tahap-dua-b.md",
+   "pid": 100,
+   "laporan": "/workspace/handoff/tahap-dua.laporan-20261031T080000.txt",
+   "mulai": "2026-10-31T08:00:20+07:00",
+   "selesai": "2026-10-31T08:10:00+07:00",
+   "durasi_detik": 60.0,
+   "rc": 1,
+   "status": "gagal",
+   "tandai": "gagal: kode 1"
+  }
+ ]
+}

@@ -2,7 +2,7 @@
 
 Dashboard satu halaman: hirarki tim agent, status, tugas aktif + pemberi order, riwayat hari ini, dan (tampilan Kantor Agen)
 misi per agen. Kontrak data: `docs/skema-ringkasan.md`; aturan misi: `docs/misi.md`; semua kunci config: `docs/config.md`;
-rencana pasang di host ini: `docs/pasang-g7.md` (belum dijalankan). Dokumen ini diturunkan dari runbook tim sumber dan
+pemasangan di host ini: `docs/pasang-g7.md` (sudah dipasang di g7, 31 Okt 2026). Dokumen ini diturunkan dari runbook tim sumber dan
 disamarkan; angka bertanda "tim sumber" diukur di instalasi sumber dan **belum diukur** di host ini.
 
 > Penulisan: `<AKAR>` = folder project (di host ini `/data/agent-dashboard`), `<user-app>` = user OS yang menjalankan generator
@@ -23,10 +23,14 @@ disamarkan; angka bertanda "tim sumber" diukur di instalasi sumber dan **belum d
 | Config tim | `conf/tim.json` (identitas tim, daftar agen, sumber data, pola; `docs/config.md`) | dibaca generator tiap siklus dan web saat start |
 | Peta nama project | `conf/proyek.json` (slug → nama tampil; slug tanpa entri tampil apa adanya) | dibaca generator tiap siklus |
 | Daftar agen | koordinator + setiap `<sumber.profil>/<id>/profile.yaml` (tanpa hardcode; skema §3.0), atribut dari `agen` di `conf/tim.json` | dipindai generator tiap siklus |
+| Hook aktivitas | `hooks/team-activity.py`, salinan di `$HERMES_HOME/agent-hooks/` (container Hermes) | dipanggil Hermes per event hook; terpasang di semua profil g7 sejak 31 Okt 2026 (bagian Hook aktivitas) |
+| Skrip pemasangan | `script/pasang.sh` (cek/pasang/rollback di host), `script/pasang-hook.py` (hook, jalan di container Hermes) | manual, dijalankan pemilik/TL |
 
 Generator hanya MEMBACA: log aktivitas (`sumber.activity`), folder lock (`sumber.lock`), header brief di `sumber.brief`
 (baris pertama s.d. baris Peminta, maks 10 baris), `sumber.proc`, daftar folder + `description` di `sumber.profil`, dan
-`conf/tim.json`. Isi `text`/`detail`, argv, dan isi brief tidak pernah ditulis ke ringkasan maupun log.
+`conf/tim.json`. Sejak 31 Okt 2026 juga: `sumber.handoff` (`jalan-*.json`, `<kunci>.md`), riwayat lock
+(`locks/.tim_kunci.riwayat.jsonl`), `sumber.verdict`, dan `sumber.guard` (jsonl). Isi `text`/`detail`, argv, dan isi brief
+tidak pernah ditulis ke ringkasan maupun log.
 
 Alamat: `http://<ip-bind>:<AD_PORT>/` (nilai dari `.env`). HTTP polos adalah keputusan sadar Pemilik tim sumber (Q1 (b), 16 Okt 2026;
 ADR-003 butir 2), bukan debt. Risiko yang diterima: password dan cookie sesi lewat HTTP; lewat Tailscale terenkripsi, lewat LAN tidak
@@ -35,8 +39,16 @@ Tailscale) adalah override compose, bukan bawaan (`docs/config.md`, bagian env).
 
 ## Pasang dari nol
 
-Rencana langkah di host ini ada di `docs/pasang-g7.md` (belum dijalankan; tiap langkah butuh izin eksplisit Pemilik). Ringkasan
-urutan generik:
+Langkah pemasangan di host ini ada di `docs/pasang-g7.md` (sudah dijalankan di g7 pada 31 Okt 2026; setiap langkah tetap butuh
+izin eksplisit Pemilik untuk pekerjaan baru). `script/pasang.sh` membungkus langkah C dan E:
+
+```
+script/pasang.sh cek        # uji pasca-pasang (bagian 4 dan 9 docs/pasang-g7.md); keluar 1 bila ada yang gagal
+script/pasang.sh pasang     # .env wajib ada; compose up --build; generator sekali ke tmp/test; unit generator; lalu cek
+script/pasang.sh rollback   # generator, container, dan override dihentikan; .env, db/data, storage/misi tidak disentuh
+```
+
+Ringkasan urutan generik:
 
 ```
 ss -ltnH '( sport = :<AD_PORT> )'             # harus kosong
@@ -45,6 +57,7 @@ script/pasang-generator.sh                    # idempoten: ganti @AKAR@, salin u
 ```
 
 Service user systemd membutuhkan linger agar jalan tanpa sesi login (`loginctl enable-linger <user-app>`, butuh hak admin).
+`script/pasang.sh pasang` mencoba `sudo -n loginctl enable-linger` bila linger belum aktif.
 
 ## Cek status
 
@@ -69,6 +82,41 @@ python3 -c 'import json;d=json.load(open("storage/ringkasan/<pemilik>.json"));pr
 stat -c '%a %U %n' storage/misi storage/misi/nomor.json      # harap: 750 <user-app> storage/misi ; 640 <user-app> storage/misi/nomor.json
 docker inspect -f '{{.Image}}' agent-dashboard-web-1         # catat sebagai acuan rollback
 ```
+
+## Hook aktivitas: status, perbarui, dan uji
+
+**Status:** terpasang di semua profil Hermes di g7 sejak 31 Okt 2026 (laporan implementer; cocokkan dengan `cek` di bawah).
+Repo ini tidak memasang hook sendiri: pemasangan dilakukan oleh `script/pasang-hook.py` di dalam container Hermes. Yang berjalan
+di container adalah salinan `$HERMES_HOME/agent-hooks/team-activity.py` dan `agent-dashboard-tim.json`, bukan folder project.
+
+Skrip disalin dulu dari project (jangan dijalankan dari folder project), lalu sha256-nya dicocokkan dengan verdict QC:
+
+```
+ssh <host> cat <AKAR>/script/pasang-hook.py > <scratch>/pasang-hook.py
+sha256sum <scratch>/pasang-hook.py                                   # cocokkan dengan verdict QC
+HERMES_HOME=<akar data Hermes> /opt/hermes/.venv/bin/python <scratch>/pasang-hook.py cek <host> <AKAR>
+```
+
+Mode (docstring `script/pasang-hook.py` adalah sumber kebenarannya): `cek` membandingkan sha256 salinan dengan sumbernya dan
+memeriksa posisi entri hook (paling akhir di tiap event) serta allowlist; `uji` menampilkan diff config tanpa menulis;
+`pasang`; `perbarui`; `rollback`; `bersihkan`.
+
+**Memperbarui isi hook tanpa mengubah config** (`perbarui`): skrip baru dijalankan dulu dengan payload `pre_tool_call` contoh di
+folder sementara (harus rc 0 dan menulis tepat satu baris JSON), lalu salinan diganti secara atomik dengan cadangan `.lama` dan
+verifikasi sha256. Config dan allowlist tidak disentuh, dan **tidak perlu restart**: approval Hermes dikunci per (event, command),
+dan hook dijalankan ulang per panggilan.
+
+```
+HERMES_HOME=<akar data Hermes> /opt/hermes/.venv/bin/python <scratch>/pasang-hook.py perbarui <host> <AKAR>
+HERMES_HOME=<akar data Hermes> /opt/hermes/.venv/bin/python <scratch>/pasang-hook.py cek <host> <AKAR>   # harap: tanpa GAGAL
+```
+
+`HERMES_HOME` wajib akar data Hermes (yang memuat `config.yaml` dan `profiles/`), bukan folder satu profil. Mode `pasang` dan
+`rollback` mengubah config dan **butuh restart gateway** sesudahnya (sesi `hermes -p` memuat hook saat start). Rollback dua tahap
+dan urutannya: lihat `docs/pasang-g7.md` Langkah F. Jangan menyalin config dari cadangan.
+
+**Uji:** `python3 -m unittest discover -s tests/hooks -v` (stdlib). Setelah perubahan hook, cek di log bahwa baris baru tidak
+memuat kunci `text`/`detail` kecuali `aktivitas` menyalakannya (`docs/config.md` bagian 3).
 
 ## Akun (dibuat Pemilik di host; TL tidak membuat akun)
 
@@ -100,7 +148,9 @@ nama/peran/induk yang rapi, tambahkan entri:
 "<id>": {"nama": "<Nama>", "peran": "<peran singkat>", "induk": ["<koordinator>"], "ruang": "teknik"}
 ```
 
-`induk` berisi `<cto>` = agen itu dihitung TL (lock `tl=<id>` sah, panggilan CTO tercatat `memanggil TL <Nama>`). Menghapus profil = agen
+`induk` berisi `<cto>` = agen itu dihitung TL (lock `tl=<id>` sah, panggilan CTO tercatat `memanggil TL <Nama>`). Sejak 31 Okt 2026:
+bila `conf/tim.json` punya kunci `tl` (daftar id), daftar itu yang menentukan TL dan aturan `induk` tidak dipakai; `sembunyikan`
+menyembunyikan profil dari daftar agen dan peta tanpa menghapus profilnya (`docs/skema-ringkasan.md` §3.0). Menghapus profil = agen
 hilang pada siklus berikutnya; entrinya di `conf/tim.json` boleh tetap (diabaikan). `conf/tim.json` yang rusak (bukan JSON /
 tipe salah / kunci wajib hilang) ditolak seluruhnya: galat terlihat dan generator memakai config sah terakhir sampai diperbaiki;
 web gagal start. Cek: `python3 -m json.tool conf/tim.json >/dev/null && echo ok`.
@@ -241,8 +291,9 @@ TL web. Dibayar: pada perubahan kode web berikutnya. Mitigasi sementara: `docker
 ## Uji
 
 ```
-python3 -m unittest discover -s tests/generator -v                          # generator + kontrak (fixture tests/fixtures)
-python3 -m unittest discover -s tests/hooks -v                              # hook aktivitas (tidak dipasang)
+python3 -m unittest discover -s tests/generator -v                          # generator + kontrak (fixture tests/fixtures), termasuk test_p15 (P1.5)
+python3 tests/fixtures/bangun_p15.py                                        # bangun ulang fixture P1.5 (tests/fixtures/p15), data fiktif
+python3 -m unittest discover -s tests/hooks -v                              # hook aktivitas (terpasang di g7; bagian Hook aktivitas)
 docker run --rm -e GOTOOLCHAIN=local -v "$PWD/apps:/src:ro" -w /src golang:1.25-alpine go test -count=1 ./...
 ```
 

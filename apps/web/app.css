@@ -14,6 +14,7 @@
   --line: #dfe3de; --track: #e4e6e3; --ink: #23282c; --muted: #5e656b; --primary: #2b3135; --on-primary: #ffffff;
   --work: #2c6a78; --work-bg: #e0ecee; --wait: #8a5a12; --wait-mark: #a8732a; --wait-bg: #f4ead8; --wait-ink: #4a3a20;
   --idle: #5e656b; --idle-mark: #b9bfbc; --idle-bg: #eceeeb; --live: #4e8a6a;
+  --ok: #2f6b45; --ok-bg: #e0eee5; --bad: #9b2f2f; --bad-bg: #f5e1e0;
   color-scheme: light;
 }
 :root[data-tema="gelap"] {
@@ -21,6 +22,7 @@
   --line: #3a4043; --track: #3a4043; --ink: #e9ecea; --muted: #a5aca9; --primary: #e9ecea; --on-primary: #1a1d1e;
   --work: #7fb7c3; --work-bg: #24393e; --wait: #e2b874; --wait-mark: #c9964a; --wait-bg: #3a3122; --wait-ink: #eadcc1;
   --idle: #a5aca9; --idle-mark: #5f6764; --idle-bg: #303537; --live: #7cbf98;
+  --ok: #8fd0a8; --ok-bg: #243a2d; --bad: #f0a3a0; --bad-bg: #432726;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -202,9 +204,23 @@ h2 { font-size: 16px; font-weight: 600; }
 .sub-row.done span:nth-child(2) { color: var(--muted); }
 .sub-empty { margin: 0; font-size: 13px; color: var(--muted); border: 1px dashed var(--idle-mark); border-radius: 12px; padding: 10px 12px; }
 .m-subs { font-size: 12px; color: var(--muted); }
+/* penanda jenis permintaan, badge QC, dan daftar misi anak */
+.tag, .qc { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; background: var(--idle-bg); color: var(--idle); }
+.tag { background: var(--wait-bg); color: var(--wait); }
+.qc.ok { background: var(--ok-bg); color: var(--ok); } .qc.bad { background: var(--bad-bg); color: var(--bad); }
+.m-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.d-badges { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
+.d-meta .link { min-height: 0; }
+.anak-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 32px; padding: 4px 6px; border-radius: 8px; font-size: 13px; text-align: left; }
+button.anak-row:hover { background: var(--hover); }
+.anak-row span { overflow-wrap: anywhere; } .anak-row small { font-size: 12px; color: var(--muted); white-space: nowrap; }
 
 .ev { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 5px 6px; margin: 0 -6px; border-radius: 6px; }
 .ev time { font-size: 12px; color: var(--muted); padding-top: 1px; }
+.akt { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 2px 10px; padding: 5px 6px; margin: 0 -6px; border-radius: 6px; }
+.akt time { font-size: 12px; color: var(--muted); padding-top: 1px; }
+.akt b { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.akt code { grid-column: 2; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--muted); overflow-wrap: anywhere; white-space: pre-wrap; }
 .ev span { overflow-wrap: anywhere; }
 .ev.fresh { animation: arrive 1.6s ease-out; }
 @keyframes arrive { from { background: var(--work-bg); } to { background: transparent; } }

@@ -42,7 +42,9 @@ belum diverifikasi.
 | `penonton` | list id orang | wajib | `["pemilik"]` | siapa dibuatkan `<id>.json` dan boleh punya akun web (akun sah web = isi `penonton`) |
 | `pemilik` | id orang, wajib termasuk `penonton` | wajib | `"pemilik"` | penonton yang melihat semua (`cakupan: "semua"`); pemilik bawaan peristiwa/tugas tanpa pemberi |
 | `koordinator` | id agen | wajib | `"koordinator"` | akar organisasi agen; selalu dianggap hadir tanpa folder profil |
-| `cto` | id agen | wajib | `"cto"` | TL = agen yang `induk`-nya memuat `cto`, kecuali `cto` dan `koordinator` |
+| `cto` | id agen atau `null` | opsional sejak 31 Okt 2026 (sebelumnya wajib) | `"cto"` | TL = agen yang `induk`-nya memuat `cto`, kecuali `cto` dan `koordinator` (aturan lama; bila `tl` ada, `tl` yang dipakai). `null` atau tidak ada = tidak ada TL dari induk |
+| `tl` | list id agen | opsional (sejak 31 Okt 2026) | `["g7-tl1", "g7-tl2"]` | daftar eksplisit pemegang lock (TL). Bila ada, menggantikan aturan induk `cto`. Id yang tidak ada di `agen` diabaikan diam-diam; tidak boleh memuat `koordinator`; tanpa duplikat (`docs/skema-ringkasan.md` §3.0) |
+| `sembunyikan` | list id agen | opsional (sejak 31 Okt 2026); bawaan `[]` | `["tl-lama"]` | profil yang tidak tampil di `agen` dan peta (folder profilnya tetap ada; tidak memicu peringatan `belum ada di conf/tim.json`). Bentuk sama dengan `tl` |
 | `agen` | objek `id → {nama, peran, induk[], ruang}` | wajib | `{"tl-1":{"nama":"<TL 1>","peran":"Tech Lead","induk":["cto"],"ruang":"teknik"}}` | daftar agen (menggantikan berkas `conf/agen.json` yang dihapus); `ruang` ∈ `koordinasi`, `riset`, `qa`, `teknik` (opsional; tanpa `ruang` → `lain`) |
 | `sumber.activity` | path host | wajib | `/<jalur-host>/activity.jsonl` | log aktivitas jsonl |
 | `sumber.profil` | dir host | wajib | `/<jalur-host>/profiles` | folder profil Hermes: `<id>/profile.yaml`, `config.yaml`, `state.db` |
@@ -50,7 +52,9 @@ belum diverifikasi.
 | `sumber.workspace_kontainer` | path | wajib | `/workspace` | awalan path di lock `brief=` yang diterjemahkan ke `sumber.workspace` |
 | `sumber.brief` | dir host | wajib | `/<jalur-host>/workspace/brief` | folder brief |
 | `sumber.lock` | dir host | wajib | `/<jalur-host>/workspace/locks` | folder lock |
-| `sumber.handoff` | dir host atau `null` | boleh `null` | `/<jalur-host>/workspace/handoff` | folder handoff; **belum dibaca generator** (celah, bagian 5 `docs/pasang-g7.md`) |
+| `sumber.handoff` | dir host atau `null` | boleh `null` | `/<jalur-host>/workspace/handoff` | folder handoff: `jalan-*.json` (status run peluncur) dan `<kunci>.md` (langkah B7). Dibaca generator sejak 31 Okt 2026 (`docs/misi.md` B6/B7); `null`/absen = tidak dibaca |
+| `sumber.verdict` | dir host atau `null` | boleh `null` | `/<jalur-host>/workspace/verdict` | folder verdict QC `<YYYYMMDD-HHMM>-<topik>.json` (dibaca sejak 31 Okt 2026, penautan QC di `docs/misi.md` B6). `null`/absen = tidak dibaca |
+| `sumber.guard` | list path jsonl, boleh kosong | boleh kosong/absen | `["/<jalur-host>/guard/<log>.jsonl"]` | log keputusan guard; hanya keputusan `blok` yang dipakai (peristiwa "diblok", `docs/skema-ringkasan.md` §3.6). Absen = `[]` |
 | `sumber.proc` | dir | wajib | `/proc` | `/proc` |
 | `pola.brief_nama` | regex; memuat `{pelaksana}` dan grup `sisa` | wajib | `<regex>` | konvensi nama brief |
 | `pola.lock_nama` | regex (fullmatch nama lock tanpa `.lock`) | wajib | `<regex>` | nama lock yang sah |
@@ -70,11 +74,14 @@ Satu pelanggaran = seluruh berkas ditolak (aturan Kegagalan, bagian 1). Selain k
 - `orang`: list tak kosong; tiap `id` cocok `[a-z0-9][a-z0-9_-]{0,63}`, `nama` string tak kosong, `peran` string, `induk` list string tak kosong;
   `id` unik dan `nama` unik.
 - `penonton`: list tak kosong, setiap anggota string yang ada di `orang[].id`, tanpa duplikat. `pemilik`: string yang ada di `penonton`.
-- `koordinator` dan `cto`: string yang cocok pola id yang sama. Kode tidak memeriksa apakah keduanya ada di `agen`.
+- `koordinator`: string yang cocok pola id. `cto`: string yang cocok pola id, atau `null`/tidak ada (opsional sejak 31 Okt 2026).
+  Kode tidak memeriksa apakah keduanya ada di `agen`.
+- `tl`, `sembunyikan` (bila ada): list string, tiap id cocok pola id, bukan `koordinator`, tanpa duplikat; selain itu seluruh
+  berkas ditolak (termasuk `null`). Absen: `tl` = aturan lama (anak langsung `cto`), `sembunyikan` = `[]`.
 - `agen`: objek; tiap kunci cocok pola id; tiap nilai objek dengan `nama` string tak kosong, `peran` string, `induk` list string tak kosong,
   dan `ruang` (bila ada) ∈ `koordinasi, riset, qa, teknik`. Nilai `ruang` lain menolak seluruh berkas.
-- `sumber.activity`, `profil`, `workspace`, `workspace_kontainer`, `brief`, `lock`, `proc`: string tak kosong. `sumber.handoff`: string tak kosong,
-  `null`, atau tidak ada.
+- `sumber.activity`, `profil`, `workspace`, `workspace_kontainer`, `brief`, `lock`, `proc`: string tak kosong. `sumber.handoff` dan `sumber.verdict`:
+  string tak kosong, `null`, atau tidak ada. `sumber.guard`: list string tak kosong (boleh kosong; `null` atau tidak ada = `[]`).
 - `pola.brief_nama`, `pola.lock_nama`, `pola.peminta`: string tak kosong. `brief_nama` harus memuat `{pelaksana}` dan `(?P<sisa>`.
   `pola.lock_pemisah_subtugas`: string tak kosong, `null`, atau tidak ada.
 - Semua regex harus valid: `brief_nama` (setelah `{pelaksana}` diganti), `lock_nama`, `peminta`, dan tiap `kategori_perintah[].pola`.
@@ -107,11 +114,13 @@ Keputusan akhir ada pada Pemilik saat pasang (pertanyaan Q4); kontrak menetapkan
 Aturan baca (hook):
 
 - Bila `aktivitas` tidak ada, atau `catat_teks`/`catat_detail` bukan tepat `true`, baris hanya memuat metadata: `type`, `role`, `name`,
-  `profile`, `sid`, `ts`, `tool` (untuk type tool), `blocked` (false), `sub` (true bila `extra.platform == "subagent"`), `sistem` (true
+  `profile`, `sid`, `ts`, `tool` (untuk type tool), `sub` (true bila `extra.platform == "subagent"`), `sistem` (true
   bila pesan = notifikasi gateway; dihitung dari teks di memori, **teksnya tidak ditulis**). Kunci `text` dan `detail` **tidak ada**
   di baris (bukan string kosong). Tidak ada nilai bawaan yang mencatat isi pesan.
 - `AD_TIM` tidak diset, atau `tim.json` tidak terbaca/tidak sah → hook tidak menulis apa pun (koordinator tidak diketahui) dan keluar 0.
-- Nilai g7 dan `conf/tim.example.json` menulis keempat sub-kunci secara eksplisit dengan nilai bawaan di atas.
+- Nilai g7 dan `conf/tim.example.json` menulis keempat sub-kunci secara eksplisit dengan nilai bawaan di atas (untuk g7 live, lihat bagian 6.3).
+- **Sejak 31 Okt 2026 tidak ada kunci `blocked`** di baris log. Hermes menjalankan hook `pre_tool_call` secara independen (hook tidak
+  menerima keputusan hook lain), jadi blok tidak bisa diketahui di hook. Sumber blok = log guard (`sumber.guard`, `docs/skema-ringkasan.md` §3.6).
 - Generator wajib tetap berjalan atas log metadata-saja (ada satu tes untuk itu).
 
 **Konsekuensi bawaan `false`** (ditulis di sini sesuai KONTRAK §6a):
@@ -160,7 +169,7 @@ repo; dibuat saat pasang (`docs/pasang-g7.md`).
 | Variabel | Dipakai oleh | Bawaan | Arti |
 |---|---|---|---|
 | `AD_TIM` | generator, web (container), hook | generator: `<AKAR>/conf/tim.json`; web: `/srv/conf/tim.json` (compose mem-mount `./conf/tim.json:/srv/conf/tim.json:ro` dan mengeset `AD_TIM=/srv/conf/tim.json`); hook: tidak ada | lokasi `tim.json`. Hook: dipakai untuk id koordinator dan nama pemilik |
-| `TEAM_ACTIVITY_LOG` | hook aktivitas (`hooks/team-activity.py`, **tidak dipasang** di tahap ini) | tidak ada | path berkas jsonl tujuan. Tidak diset = hook tidak menulis apa pun. Tanpa path bawaan yang menunjuk server tertentu |
+| `TEAM_ACTIVITY_LOG` | hook aktivitas (`hooks/team-activity.py`; dipasang ke semua profil Hermes di g7 sejak 31 Okt 2026 lewat `script/pasang-hook.py`, `docs/operasi.md`) | tidak ada | path berkas jsonl tujuan. Tidak diset = hook tidak menulis apa pun. Tanpa path bawaan yang menunjuk server tertentu |
 
 Path `AD_TIM` dan `TEAM_ACTIVITY_LOG` yang terlihat dari container Hermes tempat hook berjalan ditentukan saat pasang (keputusan
 terbuka Q6, `docs/pasang-g7.md`), karena `conf/tim.json` ada di host.
@@ -189,6 +198,7 @@ Sumber nilai: KONTRAK §2 (diisi TL generator ke `conf/tim.json` host ini). Berk
 | `pemilik` | `"akbar"` |
 | `koordinator` | `"default"` (Lala; nilai `profile` di payload hook profil default) |
 | `cto` | `"arsa"` |
+| `tl`, `sembunyikan` | nilai di `conf/tim.json` host, tidak dicatat di dokumen ini (kunci baru sejak 31 Okt 2026) |
 
 `agen`:
 
@@ -208,9 +218,11 @@ Sumber nilai: KONTRAK §2 (diisi TL generator ke `conf/tim.json` host ini). Berk
 | `sumber.workspace_kontainer` | `/workspace` |
 | `sumber.brief` | `/data/hermes-agent/workspace/tim-g7/brief` |
 | `sumber.lock` | `/data/hermes-agent/workspace/tim-g7/locks` |
-| `sumber.handoff` | `/data/hermes-agent/workspace/tim-g7/handoff` (belum dibaca generator) |
+| `sumber.handoff` | `/data/hermes-agent/workspace/tim-g7/handoff` (dibaca generator sejak 31 Okt 2026) |
+| `sumber.verdict` | nilai `verdict_dir` tim G7 diterjemahkan ke path host; nilai host tidak dicatat di dokumen ini |
+| `sumber.guard` | nama berkas log guard yang disebut hook: `g7-tim-guard.jsonl` dan `qc-gate-g7.jsonl`; path host tidak dicatat di dokumen ini |
 | `sumber.profil` | `/data/hermes-agent/data/profiles` |
-| `sumber.activity` | `/data/hermes-agent/data/agent-hooks/state/activity.jsonl`, dengan `_catatan`: "belum tersedia: hook belum dipasang" |
+| `sumber.activity` | `/data/hermes-agent/data/agent-hooks/state/activity.jsonl`. Catatan lama "belum tersedia: hook belum dipasang" tidak berlaku sejak 31 Okt 2026 (hook terpasang) |
 | `sumber.proc` | `/proc` (KONTRAK tidak menyebut nilai khusus g7; bawaan) |
 
 Asal path tim: `lockdir`, `handoff_dir`, dan `verdict_dir` dari konfigurasi tim G7 diterjemahkan ke path host di atas.
@@ -226,8 +238,8 @@ Asal path tim: `lockdir`, `handoff_dir`, dan `verdict_dir` dari konfigurasi tim 
 | `kategori_perintah` | tiga entri berurutan, tanpa `sesudah_panggil` (terukur: `grep -c sesudah_panggil conf/tim.json` = 0 di g7, 25 Okt 2026): ssh ke `g7` → "menjalankan perintah di g7"; ssh ke host aplikasi sumber → "menjalankan perintah di " diikuti nama host itu; pola RouterOS/R1 lama → "mengakses R1" |
 | `tool.awalan_bank_dokumen` | `"mcp__obsidian__"` |
 | `tool.setor` | `"mcp__obsidian__setor"` |
-| `tool.catat_progres` | `null` (tim G7 mencatat langkah di handoff; belum dibaca generator) |
-| `aktivitas` | `{"catat_teks":false,"teks_maks":300,"catat_detail":false,"detail_maks":1000}` |
+| `tool.catat_progres` | `null` (tim G7 mencatat langkah di handoff; langkah dibaca generator dari `handoff/<kunci>.md`, `docs/misi.md` B7) |
+| `aktivitas` | bawaan repo `{"catat_teks":false,"teks_maks":300,"catat_detail":false,"detail_maks":1000}`. **Live g7 sejak 31 Okt 2026: `catat_teks` dan `catat_detail` = `true`** (laporan implementer; dibutuhkan judul card permintaan, `docs/misi.md` B9). Nilai `teks_maks`/`detail_maks` live tidak dicatat di dokumen ini. Keputusan privasi tetap milik Pemilik (bagian 3) |
 
 Ekspresi reguler persis tiap `pola.*` dan `kategori_perintah[].pola` ada di `conf/tim.json` host ini; nama host aplikasi sumber pada
 entri kedua `kategori_perintah` sengaja tidak ditulis di dokumen (nilai config, bukan dokumentasi).

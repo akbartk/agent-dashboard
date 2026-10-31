@@ -7,6 +7,12 @@ ada dengan makna sama; `versi_skema` tetap `"1"`. Yang ditambah: `ringkasan`, `m
 rollback web dan generator bisa terpisah. Uji: `tests/generator/test_misi.py`, `tests/generator/test_misi_penonton.py`,
 fixture `tests/fixtures/misi1/` (dibangun ulang dengan `python3 tests/fixtures/bangun_misi1.py`).
 
+**Alur tim "P1.5" (sejak 31 Okt 2026).** Koordinator (`<koordinator>`; di g7 `default`) memanggil pengerja langsung lewat
+`tim_jalankan.py --tugas <kunci> <tl> <brief>`; tidak ada CTO di jalur itu. Yang ditambah dokumen ini: brief tanpa H1 (B1 P1.5,
+B4), sumber status dari `handoff/jalan-*.json` dan lock (B6), langkah dari handoff (B7), dan card permintaan koordinator
+(B9, dengan field `jenis`, `anak`, `jalan`, `qc`). Uji: `tests/generator/test_p15.py` (memakai `tests/fixtures/p15/`, dibangun
+ulang dengan `python3 tests/fixtures/bangun_p15.py`; data fiktif, penanda `KANARI-…` dipastikan tidak bocor ke keluaran).
+
 > Penulisan: `<koordinator>`, `<cto>`, `<pemilik>`, `<pemberi-1>`, `<tl-1>` … adalah id yang diisi dari `conf/tim.json`
 > (kunci `koordinator`, `cto`, `pemilik`, `orang`, `agen`; lihat `docs/config.md`), bukan nilai tetap di kode. Nama tampilan
 > di teks peristiwa diambil dari `agen[<koordinator>].nama` dan sejenisnya. Contoh nama project (`proyek-a`) fiktif.
@@ -15,6 +21,8 @@ fixture `tests/fixtures/misi1/` (dibangun ulang dengan `python3 tests/fixtures/b
 > baris tanpa `text` dan `detail` (`aktivitas.catat_teks` dan `catat_detail` bawaan `false`). Akibat pada aturan di dokumen ini
 > bila bawaan itu dipakai: pencocokan B1 (baris 1 `text` dengan header brief) tidak pernah cocok, sehingga tidak ada misi yang
 > terdeteksi dari log; kategori langkah yang membaca `detail` (K1) turun ke nama tool. Menyalakannya = keputusan Pemilik.
+> **Sejak 31 Okt 2026:** judul card permintaan (B9) membutuhkan `catat_teks` = `true`; laporan implementer menyebut
+> `catat_teks` dan `catat_detail` live di g7 = `true` (lihat `docs/config.md` bagian 6.3).
 
 ## 1. Sumber yang dibaca (baca saja)
 
@@ -26,7 +34,13 @@ fixture `tests/fixtures/misi1/` (dibangun ulang dengan `python3 tests/fixtures/b
 | `--proc` | argv proses hermes (profil `-p`, header `-z`), PPID (`/proc/<pid>/stat` kolom 4) | argv |
 | `--profil`/`<p>/state.db` | tabel `sessions`, **hanya kolom `id, parent_session_id, started_at, ended_at`**; `source = 'subagent'` dipakai sebagai penyaring `WHERE` saja | id sesi, kolom lain |
 | `--profil`/`<p>/config.yaml` | `delegation.oneshot_max_children` | isi lain |
-| `conf/tim.json` kunci `agen` (`--tim` / `AD_TIM`) | `agen[].ruang` (opsional); daftar agen, `koordinator`, `cto`, `pemilik` | – |
+| `conf/tim.json` kunci `agen` (`--tim` / `AD_TIM`) | `agen[].ruang` (opsional); daftar agen, `koordinator`, `cto` (opsional, P1.5), `pemilik`, `tl`, `sembunyikan` | – |
+| **[P1.5]** `--workspace`/`handoff/jalan-*.json` (`sumber.handoff`) | `tugas[]`: `kunci`, `tl`, `brief` (hanya nama berkas), `mulai`, `selesai`, `status`, `rc`, `durasi_detik`, `laporan` (hanya nama berkas), `final` | isi `brief`/`laporan` selain nama berkas |
+| **[P1.5]** `--workspace`/`handoff/<kunci>.md` | hanya baris `### <tgl> <jam> WIB — <tl> — Status: <Kata>` (pola `RE_HANDOFF`); baris `Handoff:` pada header brief | isi entri |
+| **[P1.5]** `--workspace`/`locks/.tim_kunci.riwayat.jsonl` | `ts`, `kunci`, `tl`, `perintah` (`kunci`/`selesai`/`lepas`/`alihkan`) | field lain |
+| **[P1.5]** `sumber.verdict` (`verdict/<YYYYMMDD-HHMM>-<topik>.json`) | `dibuat`, `verdict` (dipotong 30 karakter), `brief`, `oleh`; topik dari nama berkas | field lain |
+| **[P1.5]** `sumber.guard` (daftar jsonl) | `ts`, `profile`, `keputusan` (hanya `blok` yang dipakai), `kategori`/`jenis` (hanya bila aman) | argumen, alasan, hash, sid |
+| **[P1.5]** brief `<workspace>/brief/*.md` | 4096 byte pertama dibaca hanya untuk pencocokan awalan (B1 P1.5) dan cache-nya di memori | tidak pernah ditulis |
 
 Kueri state.db persis (konstanta `KUERI_SESI`): `SELECT id, parent_session_id, started_at, ended_at FROM sessions WHERE
 source = 'subagent' AND parent_session_id IN (?, …)`; koneksi URI `file:<path>?mode=ro`, `timeout=1.0` detik, tidak pernah
@@ -45,6 +59,15 @@ di luar header tidak pernah ditulis ke keluaran. Kecocokan diputuskan saat baris
 terhadap brief yang ada saat itu, lalu dibekukan untuk sid itu. Beberapa sesi dengan brief sama = satu misi. Baris
 notifikasi sistem (`sistem: true`/pola hook) tetap diabaikan tanpa efek. Sesi tanpa kecocokan (percakapan koordinator,
 perintah inline, sub-agen, H1 ganda tanpa header pembeda) bukan misi.
+
+**B1 P1.5 — pencocokan tanpa H1 (sejak 31 Okt 2026).** Brief P1.5 tidak punya H1 dan tidak punya baris `Peminta`. Urutan
+pencocokan sesi `(profil, sid)` (dihitung hanya sekali, lalu dibekukan untuk sid itu):
+(a) **jalan-\*.json**: tepat 1 nama brief (berkas yang ada di folder brief) dari tugas dengan `tl` = profil sesi dan `mulai` ≤ 120 dtk
+dari baris `msg` pertama sesi itu; (b) **awalan**: teks baris `msg` pertama sama dengan awalan isi brief (4096 byte pertama, tanpa
+`\r`), minimal 20 karakter, dan tepat 1 brief yang cocok; (c) **H1 lama** (aturan B1/B1' di atas). Tahap yang tidak menghasilkan
+tepat 1 kandidat dilewati ke tahap berikutnya; bila tidak ada yang tersisa → bukan misi (tidak menebak). (a) dan (b) ditolak bila
+pelaksana brief diketahui dan berbeda dari profil sesi; pelaksana dari nama berkas (`pola.brief_nama` dengan `{pelaksana}`),
+selain itu dari baris `Kunci: tl=<id>` di header. Isi brief hanya ada di memori.
 
 **B2 — nomor stabil.** Lihat bagian 3.
 
@@ -73,6 +96,11 @@ Contoh: `# Brief <Nama>: proyek-a tampilan baru (24 Okt 2026)` → `proyek-a tam
 `# Brief <Nama>:` → `null`; `# Brief TL — proyek-a — 2026-10-16 — Audit` tetap `Audit`. Berlaku sama untuk
 `tugas_aktif[].judul` (makna field tetap "judul"). Uji: `tests/generator/test_judul_brief_x.py`.
 
+**B4 P1.5 — judul dan project tanpa H1 (sejak 31 Okt 2026).** Bila baris 1 brief bukan H1, judul = `<nama project> — <topik>`
+(`_judul_p15`): project = slug lock `brief=` (B4), lalu slug berkas, lalu baris `Project: <slug>` di header; topik = sisa nama
+berkas sesudah `YYYY-MM-DD-<pelaksana>-` dan slug project, `-` jadi spasi. Tanpa project atau topik kosong → judul `null`. Teks
+tetap disaring §3.7 dan dipotong 200 karakter. Pemberi tetap dari baris `Peminta` (tanpa baris itu → `null`).
+
 **B5 — rantai** = `[pemberi_id]` (bila ada) + jalur organisasi dari `<koordinator>` ke pelaksana menurut `induk` efektif (§3.0):
 dari pelaksana naik ke induk pertama yang hadir, sampai `<koordinator>` (maks 6 langkah; tidak sampai → `[pelaksana]`), lalu
 dibalik. Ini **rantai organisasi**, bukan jejak pengamatan siapa memanggil siapa.
@@ -93,10 +121,35 @@ dibalik. Ini **rantai organisasi**, bukan jejak pengamatan siapa memanggil siapa
 Misi `selesai`/`berakhir` hanya dimuat bila tanggal `selesai` = hari ini (WIB); misi `jalan`/`menunggu` selalu dimuat.
 `induk_misi` = id misi pemilik proses leluhur terdekat (hanya saat keduanya hidup), selain itu `null`.
 
+**B6 P1.5 — status dari peluncur, lock, dan laporan (sejak 31 Okt 2026).** Sumber tambahan: *run* = tugas di
+`handoff/jalan-*.json` (peluncur `tim_jalankan.py`) dengan `brief` yang sama dengan misi; bila ada beberapa, yang terbaru (`mulai`).
+Status run: `berjalan`, `selesai`, `gagal`, `timeout`, `dihentikan`. Snapshot dengan `final: false` **tidak dipercaya** kecuali
+pelaksananya punya proses hidup (berkas tanpa `final` dianggap final).
+
+| Keadaan | `status` / `alasan` | `selesai` |
+|---|---|---|
+| proses misi hidup; atau run `berjalan` dengan snapshot belum final dan pelaksana punya proses hidup | `jalan` / – (atau `menunggu` + `misi-lain`, seperti di atas) | `null` |
+| lock misi ada; run `selesai`, atau laporan ada, atau lock bertanda `selesai=` | `menunggu` / `review` | `null` |
+| lock misi ada, selain itu (tanpa tanda selesai) | `menunggu` / `gantung` | `null` |
+| tanpa lock; run `selesai` | `selesai` / – | `selesai` run; bila kosong, waktu `lepas` dari riwayat lock; bila kosong juga, ts log terakhir |
+| tanpa lock; run `gagal`/`timeout`/`dihentikan` | `berakhir` / status run (`gagal`, `timeout`, `dihentikan`) | `selesai` run, atau ts log terakhir |
+| tanpa lock; run `berjalan` (sudah tidak hidup) | `berakhir` / `null` | ts log terakhir |
+| tanpa run | aturan lama (laporan ada → `selesai`, selain itu `berakhir`) | sesuai aturan lama |
+
+Field `jalan` = `null` atau `{"status", "rc", "durasi_detik", "laporan"}` dari run (`laporan` = berkas laporan yang dicatat
+peluncur ada dan > 0 byte; isinya tidak dibaca). Field `qc` = `null` atau `{"hasil", "waktu"}`: verdict QC (`verdict/`) dibuat **sesudah**
+`mulai` misi dan tertaut pasti ke misi (topik berkas verdict sama dengan, diawali, diakhiri, atau memuat, sebagai batas `-`, salah
+satu pengenal misi: kunci run, slug `Project:`/berkas, nama brief tanpa `.md`, ≥ 4 karakter; atau nama berkas brief disebut di
+kolom `brief` verdict). Verdict yang cocok > 1 misi hanya dipakai bila hanya satu misi yang namanya disebut di `brief` verdict;
+selain itu diabaikan. Hasil QC dipangkas ke ≤ 30 karakter huruf kecil; badge `lulus` (hijau), `gagal` (merah), lainnya netral.
+
 **B7 — langkah.** Setiap baris tool bernama `tool.catat_progres` (`conf/tim.json`; `null` = sumber langkah belum tersedia, daftar langkah kosong; tim G7: `null`) dari sid sesi utama misi (bukan sid sub-agen) →
 `{"waktu", "label"}`; label dari `detail` dengan regex `Status\W{0,6}([A-Za-z]+)` (pertama, tanpa beda huruf):
 mulai→`Mulai`, langkah→`Langkah`, selesai→`Selesai`, hambatan→`Hambatan`, berhenti→`Berhenti`, antre→`Antre`; lainnya /
-tidak cocok → `Kemajuan dicatat`. `langkah_total` selalu `null` (UI menampilkan "—"). `langkah_sekarang` = kategori K1
+tidak cocok → `Kemajuan dicatat`. **P1.5 (31 Okt 2026):** peta label yang sama dipakai untuk kata sesudah `Status:` di handoff, dengan tambahan
+`Keputusan`, `Sebagian`, `Koreksi` (kata lain → `Kemajuan dicatat`). Sumber tambahan: entri `### <tgl> <jam> WIB — <tl> — Status: <Kata>` di `handoff/<kunci>.md` dengan
+waktu ≥ `mulai` misi dan `tl` = pelaksana; nama berkas handoff diambil dari baris `Handoff:` header brief, kunci run, atau nama
+lock. Isi entri tidak dibaca. Daftar `langkah` = gabungan kedua sumber, urut waktu. `langkah_total` selalu `null` (UI menampilkan "—"). `langkah_sekarang` = kategori K1
 (§3.2) baris log terakhir sesi utama misi (+ ` · <project_nama>` bila ber-project), `langkah_waktu` = ts-nya.
 
 **B8 — sub-agen dan kuota.** Sub-agen = baris `sessions` state.db profil pelaksana dengan `source = 'subagent'` dan
@@ -105,6 +158,40 @@ tidak cocok → `Kemajuan dicatat`. `langkah_total` selalu `null` (UI menampilka
 tetap `Data sesi tidak terbaca` dan misi pelaksana itu `subagen: null`. **Kuota spawn** = `delegation.oneshot_max_children`
 dari `<profil>/<p>/config.yaml` (parser minimal: blok kolom-0 `delegation:`, baris berindentasi `oneshot_max_children:
 <int>` sebelum kunci kolom-0 berikutnya; komentar diabaikan); tidak ada / tak terbaca → `null`.
+
+**B9 — card permintaan koordinator (sejak 31 Okt 2026).** Selain misi pengerja (`jenis: "pengerja"`), koordinator (`default`)
+punya card `jenis: "permintaan"`: satu card per **permintaan** orang di config (pesan `msg` non-sistem) dalam satu sesi (sid)
+koordinator. Pesan membuka card baru bila card terakhir sid itu sudah dibalas dan sesi diam ≥ `DIAM` (10 menit) sejak baris
+terakhirnya; selain itu pesan masuk card yang sama dan membatalkan balasan sebelumnya. Baris lain (tool, reply) masuk card
+terakhir sid itu. Sesi job terjadwal Hermes (sid berawalan `cron_`) tidak membentuk card. Field: `pemberi`/`pemberi_id` =
+pengirim pesan pertama card; `pelaksana` = nama koordinator; `mulai` = pesan pertama card; `langkah_sekarang` = kategori baris
+terakhir (K1, §3.2 skema), `langkah_waktu` = waktu baris itu; `jalan` dan `qc` `null`; `anak` = id misi pengerja yang
+diluncurkan dalam jendela card (dari pesan pertamanya sampai card berikutnya di sid yang sama), urut nomor.
+
+- **Judul** = ±80 karakter pertama pesan pertama, dipotong di batas kata + `…`, disaring §3.7; tanpa teks → `Permintaan HH:MM`.
+  Ini satu-satunya kutipan teks **pesan** yang dimuat generator (teks sudah disamarkan hook); satu-satunya kutipan lain adalah
+  `aktivitas` di bawah.
+- **`aktivitas`** (semua misi, pengerja maupun card; sejak 31 Okt 2026): `[{"waktu": ISO WIB, "tool": str, "teks": str | null}]`,
+  maks 50 baris tool terakhir, urut waktu naik. Pengerja = baris `type=tool` sid sesi utama misi (bukan sub-agen) dalam rentang
+  mulai..selesai; card = baris tool sid card itu dalam jendela card. `tool` = nama tool (disaring §3.7, ≤ 60 karakter);
+  `teks` = `detail` baris (sudah disamarkan hook) disaring §3.7 lalu dipotong ±100 karakter di batas kata + `…`; tanpa `detail`
+  → `null`. Pengecualian sengaja atas aturan "generator tidak menyalin detail". Memori hanya menyimpan 50 entri terakhir per
+  sesi/card (deque). Ikut filter misi per penonton (tidak bocor ke misi penonton lain). Uji: `TestAktivitas` di `test_p15.py`.
+- **Status** (dihitung tiap siklus, `DIAM` = 10 menit, `BASI` = 30 menit; `akhir` = baris terakhir sesi):
+  - `menunggu` + `alasan: "anak"`: diam ≥ 10 menit dan masih ada anak aktif (`jalan`/`menunggu`); `menunggu_misi` = anak aktif itu;
+  - `selesai`: sudah ada balasan koordinator (sesudah pesan terakhir card), diam ≥ 10 menit, dan tidak ada anak aktif; waktu =
+    yang terbaru dari baris terakhir card dan selesai anak;
+  - `berakhir`: tanpa balasan, tanpa anak aktif, dan diam ≥ 30 menit; waktu = `akhir`;
+  - selain itu `jalan`.
+  Card `jalan`/`menunggu` selalu dimuat; card `selesai`/`berakhir` hanya bila waktunya hari ini (WIB). Sid yang semua card-nya
+  sudah tidak aktif lebih dari 2 hari (`PANGKAS`) dibuang dari memori generator. Card `jalan` membuat status koordinator `jalan` bila
+  koordinator sebelumnya `bebas` (skema §3.3).
+- **Tautan anak → card:** peluncuran dari perintah koordinator, yaitu `tim_jalankan.py --tugas <kunci> <tl> <brief>` (per
+  pengerja) atau `hermes -p <tl>` (tanpa brief). Misi pengerja ditautkan ke card paling awal yang meluncurkannya bila: pelaksana
+  sama dan (brief sama dengan nama brief misi, atau kunci run sama); untuk peluncuran tanpa brief, pelaksana sama dan misi mulai
+  dari 5 detik sebelum sampai 10 menit sesudah peluncuran. Pengerja tanpa `induk_misi` proses → `induk_misi` = card itu.
+- **Registri tidak terbaca** → card tidak dimuat (tidak ada nomor). Penonton terbatas hanya melihat card dengan `pemberi_id`
+  miliknya (§5).
 
 ## 3. Nomor misi `T-nnn` (B2) — aturan stabil
 
@@ -120,6 +207,10 @@ dari `<profil>/<p>/config.yaml` (parser minimal: blok kolom-0 `delegation:`, bar
   `null`, dan baris riwayat yang teksnya memuat id misi (K3, "melanjutkan") tidak ditampilkan. Pulih otomatis begitu registri
   sah lagi. **[lokal]** Gagal menulis registri (mis. direktori tanpa izin tulis) diperlakukan sama (fail-closed: nomor yang
   tidak tersimpan tidak dijamin stabil).
+- **P1.5 (31 Okt 2026):** card permintaan (B9) memakai kunci registri `sesi:` + 20 hex pertama `sha256(sid + "\n" + ts pesan
+  pertama card)` (sid mentah tidak pernah ditulis) di registri yang sama; kunci divalidasi (`RE_KUNCI_REG`: nama brief tanpa `/`
+  dan NUL, bukan berawalan `sesi:`; atau `sesi:` + 20 hex). Nomor hanya diberikan kepada card yang **dimuat** siklus itu, jadi
+  backfill sesi lama tidak menghabiskan nomor; nomor tidak pernah dipakai ulang. Format berkas registri tidak berubah.
 - `id` = `"T-"` + nomor 3 digit nol di depan: `T-007`, `T-281`, `T-1000`.
 - **[lokal]** API Python tanpa `nomor=` (dipakai uji) menyimpan registri di memori proses saja.
 - Akibatnya nomor stabil antar-siklus, antar-restart, dan antar-instance baru selama registrinya sama. Menghapus registri =
@@ -172,6 +263,8 @@ lama tidak dimuat lagi.
 ## 6. Uji dan pembanding
 
 - Unit: `PYTHONDONTWRITEBYTECODE=1 TMPDIR=$PWD/tmp/test python3 -m unittest discover -s tests/generator` (dari root project).
+- P1.5: `tests/generator/test_p15.py` (29 uji; fixture `tests/fixtures/p15`, dibangun ulang dengan
+  `python3 tests/fixtures/bangun_p15.py`). Dijalankan sendiri: `python3 -m unittest discover -s tests/generator -p test_p15.py`.
 - Data asli tanpa menyentuh storage live: jalankan generator dengan `--keluaran` **dan** `--nomor` ke `tmp/test/…` (bawaan
   keduanya = live). Pembungkus uji dibuat per kebutuhan di `tmp/test/` (tidak disimpan di repo).
 - Memori: log dibaca baris demi baris, tidak pernah seluruh berkas sekaligus (koreksi 24 Okt 2026; penjaga

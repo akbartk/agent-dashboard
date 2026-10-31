@@ -3,11 +3,17 @@
 
 Membaca log aktivitas, lock, brief, dan /proc (hanya baca), lalu menulis <keluaran>/<penonton>.json tiap siklus.
 Tidak pernah menulis isi text/detail/argv/sid/brief (di luar judul & baris Peminta)/lock (di luar field dipakai).
+Pengecualian sengaja hanya dua kutipan: (1) judul card permintaan koordinator (±80 karakter pertama `text` pesan pertama
+sesi, disaring); (2) `aktivitas` per misi: nama tool + ±100 karakter pertama `detail` baris tool (sudah disamarkan hook,
+disaring lagi dengan `saring`), maks 50 baris terakhir per sesi utama misi / card (deque; log tidak disimpan utuh).
+Alur tim "P1.5" (31 Okt 2026): brief tanpa H1, status dari handoff/jalan-*.json + lock, riwayat lock permanen, handoff md,
+verdict QC, guard blok, panggilan TL, card permintaan koordinator (docs/misi.md).
 Misi "Kantor Agen" (sejak 24 Okt 2026): docs/misi.md; registri nomor `--nomor`, state.db profil (4 kolom, mode=ro).
 """
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import signal
@@ -15,7 +21,7 @@ import sqlite3
 import stat
 import sys
 import time
-from collections import Counter
+from collections import Counter, deque
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -29,6 +35,10 @@ GALAT_AGEN = "Config agen tidak terbaca"  # teks tetap (antarmuka JSON ringkasan
 GALAT_PROFIL = "Folder profil tidak terbaca"
 GALAT_NOMOR = "Nomor misi tidak terbaca"
 GALAT_SESI = "Data sesi tidak terbaca"
+GALAT_HANDOFF = "Handoff tim tidak terbaca"
+GALAT_RIWAYAT = "Riwayat lock tidak terbaca"
+GALAT_VERDICT = "Verdict QC tidak terbaca"
+GALAT_GUARD = "Log guard tidak terbaca"
 RUANG = ("koordinasi", "riset", "qa", "teknik")
 
 
@@ -53,6 +63,17 @@ def validasi_tim(d):
         raise ValueError("tim.json tidak sah") from e
 
 
+def _daftar_id(d, k, koord):
+    """Kunci opsional berisi daftar id unik (`tl`, `sembunyikan`): absen → None; selain itu harus sah dan bukan koordinator."""
+    if k not in d:
+        return None
+    v = d[k]
+    if not (isinstance(v, list) and all(isinstance(x, str) and RE_ID.fullmatch(x) and x != koord for x in v)
+            and len(set(v)) == len(v)):
+        raise ValueError
+    return list(v)
+
+
 def _validasi_tim(d):
     if not (isinstance(d, dict) and type(d.get("versi")) is int and d["versi"] == 1):
         raise ValueError
@@ -73,8 +94,9 @@ def _validasi_tim(d):
     if not (isinstance(d["pemilik"], str) and d["pemilik"] in pen):
         raise ValueError
     for k in ("koordinator", "cto"):
-        if not (isinstance(d[k], str) and RE_ID.fullmatch(d[k])):
+        if not ((k == "cto" and d.get(k) is None) or (isinstance(d[k], str) and RE_ID.fullmatch(d[k]))):  # cto opsional (P1.5)
             raise ValueError
+    tl, sembunyikan = _daftar_id(d, "tl", d["koordinator"]), _daftar_id(d, "sembunyikan", d["koordinator"])
     if not isinstance(d["agen"], dict):
         raise ValueError
     agen = {}
@@ -87,9 +109,11 @@ def _validasi_tim(d):
         agen[i] = {"nama": e["nama"], "peran": e["peran"], "induk": list(e["induk"]), "ruang": e.get("ruang", "lain")}
     s = d["sumber"]
     if not (isinstance(s, dict) and all(_teks(s[k]) for k in ("activity", "profil", "workspace", "workspace_kontainer",
-                                                                 "brief", "lock", "proc")) and _opsi(s.get("handoff"))):
+                                                                 "brief", "lock", "proc")) and _opsi(s.get("handoff")) and _opsi(s.get("verdict"))
+            and isinstance(s.get("guard", []) or [], list) and all(_teks(x) for x in s.get("guard") or [])):
         raise ValueError
     sumber = {k: s[k] for k in ("activity", "profil", "workspace", "workspace_kontainer", "brief", "lock", "proc")}
+    sumber.update({"handoff": s.get("handoff"), "verdict": s.get("verdict"), "guard": list(s.get("guard") or [])})
     po = d["pola"]
     if not (isinstance(po, dict) and _teks(po["brief_nama"]) and "{pelaksana}" in po["brief_nama"]
             and "(?P<sisa>" in po["brief_nama"] and _teks(po["lock_nama"]) and _teks(po["peminta"])
@@ -111,14 +135,19 @@ def _validasi_tim(d):
     if not (isinstance(t, dict) and all(_opsi(t.get(k)) for k in ("awalan_bank_dokumen", "catat_progres", "setor"))):
         raise ValueError
     tool = {k: t.get(k) for k in ("awalan_bank_dokumen", "catat_progres", "setor")}
-    return {"orang": orang, "penonton": list(pen), "pemilik": d["pemilik"], "koordinator": d["koordinator"], "cto": d["cto"],
-            "agen": agen, "sumber": sumber, "pola": pola, "sebelum": sebelum, "sesudah": sesudah,
+    return {"orang": orang, "penonton": list(pen), "pemilik": d["pemilik"], "koordinator": d["koordinator"], "cto": d.get("cto"),
+            "tl": tl, "sembunyikan": sembunyikan or [], "agen": agen, "sumber": sumber, "pola": pola, "sebelum": sebelum, "sesudah": sesudah,
             "tool": tool}
 # B8 + A2: hanya 4 kolom ini yang dibaca dari state.db (source hanya penyaring WHERE, tidak dibaca keluar)
 KUERI_SESI = ("SELECT id, parent_session_id, started_at, ended_at FROM sessions "
               "WHERE source = 'subagent' AND parent_session_id IN ({})")
 LABEL = {"mulai": "Mulai", "langkah": "Langkah", "selesai": "Selesai", "hambatan": "Hambatan", "berhenti": "Berhenti",
-         "antre": "Antre"}
+         "antre": "Antre", "keputusan": "Keputusan", "sebagian": "Sebagian", "koreksi": "Koreksi"}
+STATUS_RUN = ("berjalan", "selesai", "gagal", "timeout", "dihentikan")
+DIAM = 600      # detik: sesi koordinator dianggap diam (card selesai / menunggu anak)
+PANGKAS = timedelta(days=2)  # sid yang semua card-nya sudah selesai/berakhir selama ini dibuang dari memori
+BASI = 1800     # detik: sesi tanpa balasan & tanpa anak aktif sediam ini → card berakhir (bukan jalan selamanya)
+SELANG_JALAN = 120  # detik: toleransi tugas.mulai (jalan-*.json) ↔ baris msg pertama sesi TL
 TERMINAL = ("terminal", "execute_code")
 TANPA_PENGIRIM = "Pengirim tak dikenal"
 KUNCI_TUGAS = ("id", "judul", "project", "project_nama", "pemberi", "pemberi_id", "pengerja", "pengerja_id", "mulai",
@@ -140,6 +169,9 @@ RE_TANGGAL = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 RE_KURUNG = re.compile(r"\((.*)\)")
 RE_SISTEM = re.compile(r"^\s*\[IMPORTANT: Background process|\[INTERNAL NOTIFICATION")  # notifikasi gateway yang disisipkan hook ke sesi
 RE_STATUS = re.compile(r"Status\W{0,6}([A-Za-z]+)", re.I)  # B7: label langkah dari detail catat_progres (hanya dicocokkan)
+RE_TUGAS = re.compile(r"--tugas\s+(\S+)\s+(\S+)\s+(\S+)")  # tim_jalankan.py --tugas <kunci> <tl> <brief>
+RE_KATEGORI = re.compile(r"[A-Za-z0-9_-]{1,30}")  # kategori/jenis guard yang aman ditampilkan
+RE_HANDOFF = re.compile(r"^###\s+(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2})\s+WIB\s+\W+\s+(\S+)\s+\W+\s+Status:\s*([A-Za-z]+)", re.M)
 RE_KUOTA = re.compile(r"\s+oneshot_max_children:\s*([0-9]+)\s*(?:#.*)?")
 
 
@@ -202,6 +234,20 @@ def deskripsi(teks):
     return " ".join(sumber.split())
 
 
+AKT_MAKS, AKT_TEKS, AKT_TOOL = 50, 100, 60
+
+
+def aktivitas(w, tool, detail):
+    """Satu baris "aktivitas perintah" (waktu, tool, teks|None): `detail` disaring lalu dipotong ±100 karakter di batas kata + "…"."""
+    t = " ".join(detail.split())
+    if t:
+        t = saring(t)
+        if len(t) > AKT_TEKS:
+            potong = t[:AKT_TEKS].rsplit(" ", 1)[0]
+            t = (potong if len(potong) >= AKT_TEKS // 2 else t[:AKT_TEKS]) + "…"
+    return w, saring(tool)[:AKT_TOOL], t or None
+
+
 def kategori(jenis, tool, detail, gol, nama_r=None):
     """Tabel K1 (§3.2) → (kategori, panggil); panggil = ("tl"|"anggota", id) bila memanggil agen, else None.
     `gol` = Generator (regex panggil + nama efektif siklus ini). `detail` hanya dicocokkan, tidak pernah disalin."""
@@ -211,6 +257,10 @@ def kategori(jenis, tool, detail, gol, nama_r=None):
         for pola, teks in gol.kat_sebelum:  # `kategori_perintah` berurutan; yang tanpa `sesudah_panggil` mendahului panggil agen
             if pola.search(detail):
                 return teks, None
+        m = RE_TUGAS.search(detail) if "tim_jalankan.py" in detail else None
+        if m and m.group(2) in gol.tim:  # peluncur P1.5: pengerja ada di argumen posisi ke-2 sesudah --tugas
+            tl = m.group(2)
+            return ("memanggil TL " + gol.nama[tl], ("tl", tl)) if tl in gol.tl else ("memanggil " + gol.nama[tl], ("anggota", tl))
         m = gol.re_tl.search(detail)
         if m:
             return "memanggil TL " + gol.nama[m.group(1)], ("tl", m.group(1))
@@ -334,13 +384,22 @@ def id_misi(n):
     return "T-%03d" % n
 
 
+# kunci registri: nama berkas brief (tanpa "/" dan NUL, bukan awalan "sesi:") atau card permintaan "sesi:" + 20 hex
+RE_KUNCI_REG = re.compile(r"sesi:[0-9a-f]{20}|(?!sesi:)[^/\0]+")
+
+
+def _angka(x):
+    """Angka hingga (bukan bool) atau None: NaN/Infinity dari jalan-*.json ditolak agar keluaran JSON tetap sah."""
+    return x if isinstance(x, (int, float)) and not isinstance(x, bool) and (isinstance(x, int) or math.isfinite(x)) else None
+
+
 def baca_registri(data):
     """B2: {"versi": 1, "nomor": {nama: int ≥ 1 unik}}; selain itu ValueError."""
     d = json.loads(data)
     if not (isinstance(d, dict) and type(d.get("versi")) is int and d["versi"] == 1 and isinstance(d.get("nomor"), dict)):
         raise ValueError
     reg = d["nomor"]
-    if not all(isinstance(k, str) and k and type(v) is int and v >= 1 for k, v in reg.items()):
+    if not all(isinstance(k, str) and RE_KUNCI_REG.fullmatch(k) and type(v) is int and v >= 1 for k, v in reg.items()):
         raise ValueError
     if len(set(reg.values())) != len(reg):
         raise ValueError
@@ -406,6 +465,15 @@ class Generator:
         self.ev_lock = []       # peristiwa dari lock (tetap walau log di-reset)
         self.seq = 0
         self.cache_header = {}  # path -> (mtime_ns, size, header)
+        self.cache_awal = {}    # path brief -> (mtime_ns, size, awal isi) untuk pencocokan awalan pesan
+        self.cache_jalan = {}   # path jalan-*.json -> (mtime_ns, size, [run])
+        self.cache_handoff = {}  # path handoff md -> (mtime_ns, size, [(waktu, tl, kata)])
+        self.cache_verdict = {}  # path verdict -> (mtime_ns, size, verdict | None)
+        self.runs, self.run_brief, self.lepas_ts = [], {}, {}  # run peluncur; brief → run terbaru; kunci datar → ts `lepas`
+        self.jsonl_off = {}     # path jsonl (riwayat lock, guard) → (inode, offset): inkremental, bertahan walau log di-reset
+        self.ev_jsonl = {}      # path jsonl → [Ev]
+        self.hari_ini = None
+        self.qc_pelaku = {}
         self.akar_brief = ""
         self.ino = None
         self.perlu_awal = True  # log harus dibaca dari awal (siklus pertama / sesudah galat)
@@ -425,6 +493,7 @@ class Generator:
         self.misi_sesi = {}         # nama brief → {sesi, mulai, pelaksana, akhir, langkah, sekarang}
         self.misi_urut = []         # nama brief urut pertama kali menjadi misi (dasar nomor baru)
         self.ev_mulai = {}          # (profil, sid) → peristiwa "mulai bekerja" yang terbit sebelum baris msg pertama
+        self.k_sesi = {}            # sid koordinator → [card permintaan berurutan] (msg pemberi, balasan, peluncuran)
 
     def _ev(self, daftar, waktu, pelaku, teks, pemilik, **kw):
         self.seq += 1
@@ -455,6 +524,8 @@ class Generator:
         self.dir_brief, self.dir_lock, self.kontainer = s["brief"], s["lock"], s["workspace_kontainer"].rstrip("/")
         self.orang, self.penonton, self.pemilik = cfg["orang"], cfg["penonton"], cfg["pemilik"]
         self.koord, self.cto, self.cfg = cfg["koordinator"], cfg["cto"], cfg["agen"]
+        self.tl_cfg, self.sembunyi = cfg["tl"], set(cfg["sembunyikan"])
+        self.dir_handoff, self.dir_verdict, self.guard = s["handoff"], s["verdict"], s["guard"]
         self.pemberi = {o["nama"]: o["id"] for o in self.orang}
         self.nama_orang = {v: k for k, v in self.pemberi.items()}
         po = cfg["pola"]
@@ -513,15 +584,19 @@ class Generator:
             else:  # bawaan D3; akar (koordinator) tanpa induk
                 agen[i] = {"id": i, "nama": i.capitalize(), "peran": saring(desk[i])[:120],
                            "induk": [] if i == self.koord else [self.koord]}
-        self.agen = list(agen.values())
-        self.nama = {a["id"]: a["nama"] for a in self.agen}
+        self.nama = {i: a["nama"] for i, a in agen.items()}
+        self.agen = [a for i, a in agen.items() if i not in self.sembunyi]  # `sembunyikan`: tidak tampil di agen/peta
         self.ruang = {i: (self.cfg[i]["ruang"] if i in self.cfg else "lain") for i in agen}
         self.nama_koord = self.nama[self.koord]
-        self.tl = {i for i, a in agen.items() if i not in (self.cto, self.koord) and self.cto in a["induk"]}
+        if self.tl_cfg is not None:  # daftar eksplisit pemegang lock; tanpa kunci `tl` → aturan lama (anak langsung cto)
+            self.tl = {i for i in self.tl_cfg if i in agen}
+        else:
+            self.tl = {i for i, a in agen.items() if i not in (self.cto, self.koord) and self.cto in a["induk"]}
         self.tim = set(agen) - {self.koord}
         self.anggota = self.tim - self.tl
         self.re_tl, self.re_anggota = re_panggil(self.tl), re_panggil(self.anggota)
-        self.peringatan = sorted({saring(f"Profil {i} belum ada di conf/tim.json") for i in agen if i not in self.cfg}
+        self.peringatan = sorted({saring(f"Profil {i} belum ada di conf/tim.json") for i in agen
+                                  if i not in self.cfg and i not in self.sembunyi}
                                  | {saring(f"Profil {i} bentrok dengan id tetap, diabaikan") for i in bentrok})
 
     def _baca_peta(self, galat):
@@ -683,7 +758,7 @@ class Generator:
                           "nama": nama_p, "judul": ((judul_dari(h, {slug, pb}) if h else None)
                                                     or self._judul_berkas(nb, kv["tl"]) or f"Pekerjaan {nama_p}"),  # J-1/J-2
                           "pemberi": pem, "pemberi_id": self.pemberi.get(pem), "ev_mulai": None,
-                          "brief": nb}  # B6 "lock misi" / C3
+                          "brief": nb, "selesai": bool(kv.get("selesai"))}  # B6 "lock misi" / C3; selesai= → menunggu review
         for kunci, rec in baru.items():
             lama = self.lock.get(kunci)
             if lama and lama["tl"] == rec["tl"] and lama["mulai"] == rec["mulai"]:
@@ -708,6 +783,189 @@ class Generator:
 
     def _pemilik_tugas(self, k):
         return k["pemberi_id"] or self.pemilik
+
+    # ---- sumber P1.5: jalan-*.json peluncur, riwayat lock, guard, handoff md, verdict QC ----
+    def _baca_dir_json(self, d, awalan, akhiran, cache, galat, teks_galat, parse, maks=300):
+        """Berkas `<awalan>*<akhiran>` di d (maks terbaru), diparse `parse(bytes)` lewat cache mtime+ukuran → [(path, hasil)]."""
+        if not d:
+            return []
+        try:
+            nama = sorted(n for n in os.listdir(d) if n.startswith(awalan) and n.endswith(akhiran))[-maks:]
+        except FileNotFoundError:
+            return []
+        except OSError:
+            galat.add(teks_galat)
+            return []
+        hasil = []
+        for n in nama:
+            p = f"{d}/{n}"
+            try:
+                st = os.stat(p)
+                c = cache.get(p)
+                if not (c and c[0] == st.st_mtime_ns and c[1] == st.st_size):
+                    data = baca_biasa(p, 1 << 20)
+                    c = cache[p] = (st.st_mtime_ns, st.st_size, parse(data) if data is not None else None)
+                hasil.append((p, c[2]))
+            except OSError:
+                galat.add(teks_galat)
+        return hasil
+
+    def _baca_jalan(self, galat):
+        """handoff/jalan-*.json → self.runs (semua tugas), self.run_brief (brief → run terbaru). Isi `brief`/`laporan` hanya
+        diambil nama berkasnya; berkas lama (tanpa final/tandai) tetap terbaca."""
+        def parse(data):
+            try:
+                d = json.loads(data)
+            except (ValueError, RecursionError):
+                return None
+            return self._runs_dari(d) if isinstance(d, dict) else None
+        hasil = self._baca_dir_json(self.dir_handoff, "jalan-", ".json", self.cache_jalan, galat, GALAT_HANDOFF, parse)
+        self.runs = [r for _, rs in hasil for r in rs or ()]
+        self.run_brief = {}
+        for r in sorted(self.runs, key=lambda r: r["mulai"]):
+            self.run_brief[r["brief"]] = r
+
+    @staticmethod
+    def _runs_dari(d):
+        final, hasil = d.get("final") is not False, []  # berkas lama tanpa `final` = sudah final
+        for t in d.get("tugas") if isinstance(d.get("tugas"), list) else ():
+            if not (isinstance(t, dict) and all(_teks(t.get(k)) for k in ("kunci", "tl", "brief")) and t.get("status") in STATUS_RUN):
+                continue
+            mulai = parse_waktu(t.get("mulai"))
+            if mulai is None:
+                continue
+            hasil.append({"kunci": t["kunci"], "tl": t["tl"], "brief": os.path.basename(t["brief"]), "mulai": mulai,
+                          "selesai": parse_waktu(t.get("selesai")), "status": t["status"], "final": final,
+                          "rc": _angka(t.get("rc")), "durasi": _angka(t.get("durasi_detik")),
+                          "laporan": os.path.basename(t["laporan"]) if _teks(t.get("laporan")) else None})
+        return hasil
+
+    def _info_jalan(self, run):
+        """Field `jalan` misi; `laporan` = berkas laporan peluncur ada dan > 0 byte (isi tidak dibaca)."""
+        lap = False
+        if run["laporan"] and self.dir_handoff:
+            try:
+                st = os.stat(f"{self.dir_handoff}/{run['laporan']}")
+                lap = stat.S_ISREG(st.st_mode) and st.st_size > 0
+            except OSError:
+                pass
+        return {"status": run["status"], "rc": run["rc"], "durasi_detik": run["durasi"], "laporan": lap}
+
+    def _baca_jsonl(self, path, galat, teks_galat, proses):
+        """Tambahan baris berkas jsonl sejak offset terakhir (inode berganti / mengecil → dari awal, peristiwa sumber ini
+        dibuang); tiap objek JSON dioper ke proses(d, daftar_ev). Baris terakhir yang belum lengkap dibaca siklus berikutnya."""
+        try:
+            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except FileNotFoundError:
+            self.jsonl_off.pop(path, None)
+            self.ev_jsonl.pop(path, None)
+            return
+        except OSError:
+            galat.add(teks_galat)
+            return
+        with os.fdopen(fd, "rb") as f:
+            st = os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode):
+                galat.add(teks_galat)
+                return
+            ino, off = self.jsonl_off.get(path, (None, 0))
+            if ino != st.st_ino or st.st_size < off:
+                off = 0
+                self.ev_jsonl[path] = []
+            f.seek(off)
+            daftar = self.ev_jsonl.setdefault(path, [])
+            for raw in f:
+                if not raw.endswith(b"\n"):
+                    break
+                off += len(raw)
+                try:
+                    d = json.loads(raw)
+                except (ValueError, RecursionError):
+                    continue
+                if isinstance(d, dict):
+                    proses(d, daftar)
+            self.jsonl_off[path] = (st.st_ino, off)
+
+    def _slug_kunci(self, kunci):
+        s = kunci.split("/", 1)[0]
+        return s.split(self.pemisah, 1)[0] if self.pemisah else s
+
+    def _baca_riwayat_lock(self, galat):
+        """locks/.tim_kunci.riwayat.jsonl → peristiwa lock permanen (kunci/selesai/lepas/alihkan), hari ini saja."""
+        def proses(d, daftar):
+            kunci, tl, w = d.get("kunci"), d.get("tl"), parse_waktu(d.get("ts"))
+            if not (isinstance(kunci, str) and re.fullmatch(r"[a-z0-9][a-z0-9_/-]{0,127}", kunci) and w):
+                return
+            if d.get("perintah") == "lepas":
+                self.lepas_ts[kunci.replace("/", "--")] = w
+            if w < self.hari_ini or tl not in self.nama:
+                return
+            proyek, nm = self._nama(self._slug_kunci(kunci)), self.nama[tl]
+            teks = {"kunci": (tl, f"{nm} mulai {proyek}"), "selesai": (tl, f"{nm} selesai {proyek}"),
+                    "lepas": (self.koord, f"{self.nama_koord} melepas {proyek}"),
+                    "alihkan": (self.koord, f"{proyek} dialihkan ke {nm}")}.get(d.get("perintah"))
+            if teks:
+                self._ev(daftar, w, teks[0], teks[1], self.pemilik, kunci=("\0lock", kunci))  # pemilik ditetapkan saat render
+        self._baca_jsonl(f"{self.dir_lock}/.tim_kunci.riwayat.jsonl", galat, GALAT_RIWAYAT, proses)
+
+    def _baca_guard(self, galat):
+        """Dua jsonl guard: hanya keputusan `blok` → "<Agen> diblok <nama guard>" (+ kategori/jenis bila aman). Argumen,
+        alasan, hash, sid tidak dibaca keluar. Pemilik peristiwa ditetapkan saat render (misi agen itu pada waktu peristiwa).
+        Blok berulang agen+guard+kategori yang sama dalam 5 menit dibuang saat render (_ev_jsonl)."""
+        for path in self.guard:
+            nama_g = Path(path).stem
+
+            def proses(d, daftar, nama_g=nama_g):
+                w, profil = parse_waktu(d.get("ts")), d.get("profile")
+                if d.get("keputusan") != "blok" or w is None or w < self.hari_ini or profil not in self.nama:
+                    return
+                kat = d.get("kategori") or d.get("jenis")
+                ket = f" ({kat})" if isinstance(kat, str) and RE_KATEGORI.fullmatch(kat) else ""
+                self._ev(daftar, w, profil, f"{self.nama[profil]} diblok {nama_g}{ket}", None, kunci=("\0guard", profil))
+            self._baca_jsonl(path, galat, GALAT_GUARD, proses)
+
+    def _entri_handoff(self, nama_berkas):
+        """handoff/<nama>.md → [(waktu, tl, kata)] dari entri `### YYYY-MM-DD HH:MM WIB — <tl> — Status: <Kata>`; isi entri
+        tidak dibaca. Nama berkas harus sederhana (tanpa path)."""
+        if not (self.dir_handoff and re.fullmatch(r"[A-Za-z0-9._-]+\.md", nama_berkas or "")):
+            return []
+        def parse(data):
+            hasil = []
+            for tgl, jam, tl, kata in RE_HANDOFF.findall(data.decode("utf-8", "replace")):
+                w = parse_waktu(f"{tgl}T{jam}:00")
+                if w:
+                    hasil.append((w, tl, kata.lower()))
+            return hasil
+        p = f"{self.dir_handoff}/{nama_berkas}"
+        try:
+            st = os.stat(p)
+            c = self.cache_handoff.get(p)
+            if not (c and c[0] == st.st_mtime_ns and c[1] == st.st_size):
+                data = baca_biasa(p, 1 << 20)
+                c = self.cache_handoff[p] = (st.st_mtime_ns, st.st_size, parse(data) if data is not None else [])
+            return c[2]
+        except OSError:
+            return []
+
+    def _baca_verdict(self, galat):
+        """workspace verdict/<YYYYMMDD-HHMM>-<topik>.json → [{topik, hasil, waktu, brief, oleh}] (field lain tidak dibaca)."""
+        def parse(data):
+            try:
+                d = json.loads(data)
+            except (ValueError, RecursionError):
+                return None
+            w = parse_waktu(d.get("dibuat")) if isinstance(d, dict) else None
+            if w is None or not _teks(d.get("verdict")):
+                return None
+            return {"waktu": w, "hasil": saring(" ".join(d["verdict"].lower().split()))[:30],
+                    "brief": d["brief"] if isinstance(d.get("brief"), str) else "",
+                    "oleh": d["oleh"] if isinstance(d.get("oleh"), str) else None}
+        hasil = []
+        for p, v in self._baca_dir_json(self.dir_verdict, "", ".json", self.cache_verdict, galat, GALAT_VERDICT, parse, 200):
+            m = re.fullmatch(r"\d{8}-\d{4}-(.+)\.json", os.path.basename(p))
+            if v and m:
+                hasil.append(dict(v, topik=m.group(1)))
+        return hasil
 
     # ---- tugas (a) TL dari lock dan (b) anggota non-TL dari proses; langkah_* diisi belakangan ----
     def _kerangka(self):
@@ -776,6 +1034,60 @@ class Generator:
         ts = [k for k in kerangka if k["pengerja_id"] == agen]
         return pem, f" · {ts[0]['project_nama']}" if len(ts) == 1 and ts[0]["project"] else ""
 
+    def _sesi_koord(self, d, jenis, w, rid, nama, tool, detail):
+        """Card permintaan = satu PERMINTAAN pemberi dalam satu sesi (sid) koordinator (sesi cron `cron_…` tidak dihitung). Msg orang di config membuka card baru
+        bila card terakhir sid itu sudah dibalas (reply sesudah msg terakhirnya) dan jeda sejak baris terakhir sesi ≥ DIAM;
+        selain itu msg masuk card yang sama dan mereset balasannya. Baris lain masuk card terakhir. Per card dicatat
+        pesan pertama (judul), balasan, baris terakhir, dan peluncuran pengerja (tim_jalankan.py / hermes -p)."""
+        sid = d.get("sid") if isinstance(d.get("sid"), str) else ""
+        kartu = self.k_sesi.get(sid)
+        s = kartu[-1] if kartu else None
+        if not sid or sid.startswith("cron_") or (s is None and not (jenis == "msg" and rid)):
+            return  # sid `cron_…` = job terjadwal Hermes, bukan permintaan pemberi
+        if jenis == "msg" and s is not None:
+            if rid and s["reply"] is not None and (w - s["akhir"]).total_seconds() >= DIAM:
+                s = None  # permintaan baru
+            else:
+                s["reply"] = None  # msg baru di card yang sama: balasan lama tidak berlaku lagi
+        if s is None:
+            kunci = hashlib.sha256(f"{sid}\n{d.get('ts')}".encode("utf-8", "replace")).hexdigest()[:20]  # tanpa sid mentah
+            s = {"key": "sesi:" + kunci, "mulai": w, "pemberi": nama, "pemberi_id": rid,
+                 "judul": self._judul_kartu(d.get("text"), w), "reply": None, "kat": None, "luncur": [],
+                 "akt": deque(maxlen=AKT_MAKS)}
+            self.k_sesi.setdefault(sid, []).append(s)
+        s["akhir"] = w
+        if jenis == "reply":
+            s["reply"] = w
+            return
+        s["kat"] = kategori(jenis, tool, detail, self, nama)[0]
+        if jenis == "tool" and tool:
+            s["akt"].append(aktivitas(w, tool, detail))  # jendela card yang sama dengan `luncur`
+        if tool in TERMINAL:
+            s["luncur"] += self._luncuran(detail, w)  # jendela waktu card: [mulai card, mulai card berikutnya)
+
+    @staticmethod
+    def _judul_kartu(teks, w):
+        """±80 karakter pertama pesan pertama (sudah disamarkan hook, disaring lagi), dipotong di batas kata + "…"."""
+        t = " ".join(teks.split()) if isinstance(teks, str) else ""
+        if not t:
+            return f"Permintaan {w:%H:%M}"
+        if len(t) > 80:
+            t = (t[:80].rsplit(" ", 1)[0] if " " in t[:80] else t[:80]) + "…"
+        return saring(t)
+
+    def _luncuran(self, detail, w):
+        """[(waktu, pengerja, kunci | None, nama brief | None)] dari perintah koordinator; `detail` hanya dicocokkan."""
+        hasil = []
+        if "tim_jalankan.py" in detail:
+            hasil = [(w, tl, kunci, os.path.basename(brief.strip("'\""))) for kunci, tl, brief in RE_TUGAS.findall(detail)
+                     if tl in self.tim]
+        if not hasil:
+            for rx in (self.re_tl, self.re_anggota):
+                m = rx.search(detail)
+                if m:
+                    return [(w, m.group(1), None, None)]
+        return hasil
+
     def _pemilik_panggil(self, kerangka, x, live):
         if not live:
             return self.pemilik
@@ -810,6 +1122,7 @@ class Generator:
             rid = self.pemberi.get(nm)
             nama = nm if rid else (saring(nm) if nm not in ("", "?") else TANPA_PENGIRIM)
             kunci = rid or ("x", nama)  # pengirim tak dikenal tidak boleh bertabrakan dengan id orang
+            self._sesi_koord(d, jenis, w, rid, nama, tool, detail)
             if jenis == "reply":  # hanya peristiwa riwayat: r, koord_terakhir, tugas, status tidak berubah
                 b = self.balas.get(kunci)
                 if b is None or (w - b).total_seconds() >= 300:
@@ -830,8 +1143,10 @@ class Generator:
                     self._ev(ev, w, self.koord, f"{nama} mengirim pesan ke {nk}", pem)
             elif tool == "clarify":
                 self._ev(ev, w, self.koord, f"{nk} meminta keputusan {nama}", pem)
-            elif tool in TERMINAL and panggil and panggil[0] == "anggota":
-                self._ev(ev, w, self.koord, f"{nk} {kat}", pem)
+            elif tool in TERMINAL and panggil and (panggil[0] == "anggota" or self.tl_cfg is not None):
+                # anggota; TL hanya bila hirarki P1.5 (`tl` di config): peluncur tim_jalankan.py / hermes -p, satu per pengerja
+                for x in dict.fromkeys(l[1] for l in self._luncuran(detail, w)) or (panggil[1],):
+                    self._ev(ev, w, self.koord, f"{nk} memanggil {self.nama[x]}", pem)
             elif self.catat and tool == self.catat:
                 self._ev(ev, w, self.koord, f"{nk} mencatat kemajuan", pem)
             elif self.setor and tool == self.setor:
@@ -848,7 +1163,7 @@ class Generator:
             if jenis == "msg" and kunci not in self.sid_msg:  # B1: baris msg pertama sesi; `text` hanya dicocokkan
                 self.sid_msg.add(kunci)
                 e = self.ev_mulai.pop(kunci, None)
-                nb = (self._cocok_misi(d["text"]) if sid and d.get("sub") is not True and isinstance(d.get("text"), str)
+                nb = (self._cocok_misi(d["text"], profil, w) if sid and d.get("sub") is not True and isinstance(d.get("text"), str)
                       else None)
                 if nb:
                     if e is not None and e in self.ev_log:  # C4: "mulai bekerja" yang terlanjur terbit diganti
@@ -863,6 +1178,8 @@ class Generator:
             m = self.misi_sesi[self.sid_misi[kunci]] if kunci in self.sid_misi else None
             if m is not None:  # B6 berakhir + B7 langkah / langkah sekarang: hanya baris sesi utama
                 m["akhir"], m["sekarang"] = w, (w, kat)
+                if jenis == "tool" and tool:
+                    m["akt"].append(aktivitas(w, tool, detail))
                 if jenis != "msg" and self.catat and tool == self.catat:
                     s = RE_STATUS.search(detail)
                     m["langkah"].append((w, LABEL.get(s.group(1).lower(), "Kemajuan dicatat") if s else "Kemajuan dicatat"))
@@ -877,7 +1194,58 @@ class Generator:
         return True
 
     # ---- misi (KONTRAK Kantor Agen bagian B/C; docs/misi.md) ----
-    def _cocok_misi(self, teks):
+    def _cocok_misi(self, teks, profil=None, w=None):
+        """Urutan P1.5: (a) jalan-*.json: tugas.tl = profil sesi dan tugas.mulai ≤ 120 dtk dari msg pertama; (b) teks pesan
+        = awalan isi brief dan unik; (c) aturan H1 lama. (a)/(b) ditolak bila pelaksana brief (nama berkas / `Kunci: tl=`)
+        bukan profil sesi. Ambigu → None (tidak menebak). Hanya di memori."""
+        for cari, periksa in ((lambda: self._cocok_jalan(profil, w), True), (lambda: self._cocok_awalan(teks), True),
+                              (lambda: self._cocok_h1(teks), False)):
+            n = cari()
+            if n and (not periksa or profil is None or self._pelaksana_brief(n) in (None, profil)):
+                return n
+        return None
+
+    def _cocok_jalan(self, profil, w):
+        if profil is None or w is None:
+            return None
+        per_nama = self._indeks_brief()[2]
+        cocok = {r["brief"] for r in self.runs if r["tl"] == profil and r["brief"] in per_nama
+                 and abs((r["mulai"] - w).total_seconds()) <= SELANG_JALAN}
+        return next(iter(cocok)) if len(cocok) == 1 else None
+
+    def _awal_brief(self, n):
+        """4096 byte pertama isi brief (tanpa \\r) untuk pencocokan awalan; cache mtime+ukuran. Tidak pernah dikeluarkan."""
+        p = os.path.join(self.akar_brief, n)
+        try:
+            st = os.stat(p)
+            c = self.cache_awal.get(p)
+            if not (c and c[0] == st.st_mtime_ns and c[1] == st.st_size):
+                data = baca_biasa(p, 4096)
+                c = self.cache_awal[p] = (st.st_mtime_ns, st.st_size,
+                                          data.decode("utf-8", "replace").replace("\r", "") if data is not None else "")
+            return c[2]
+        except OSError:
+            return ""
+
+    def _cocok_awalan(self, teks):
+        t = teks.replace("\r", "")
+        if len(t.strip()) < 20:  # terlalu pendek untuk membedakan brief
+            return None
+        cocok = [n for n in self._indeks_brief()[2] if self._awal_brief(n).startswith(t)]
+        return cocok[0] if len(cocok) == 1 else None
+
+    def _pelaksana_brief(self, n):
+        """Pelaksana brief: nama berkas cocok `pola.brief_nama` (id terpanjang dulu), selain itu baris `Kunci: tl=<id>`."""
+        for i in sorted(self.tim, key=lambda i: (-len(i), i)):
+            if re.fullmatch(self.pola_brief.replace("{pelaksana}", re.escape(i)), n):
+                return i
+        for b in self._indeks_brief()[2].get(n, ()):
+            m = re.match(r"\s*Kunci:\s*tl=([a-z0-9][a-z0-9_-]*)", b)
+            if m:
+                return m.group(1) if m.group(1) in self.tim else None
+        return None
+
+    def _cocok_h1(self, teks):
         """B1': baris 1 `text` (strip) = H1 (strip) tepat satu brief → nama berkas brief itu. H1 milik > 1 brief → brief
         ber-H1 itu yang header gabungannya (H1 s.d. baris Peminta, `\\r` akhir baris dibuang dua sisi) sama dengan `text`
         pada min(len) karakter pertama; tepat satu kandidat → brief itu, selain itu None (fail-closed). Hanya di memori."""
@@ -898,7 +1266,7 @@ class Generator:
         m = self.misi_sesi.get(nb)
         if m is None:
             m = self.misi_sesi[nb] = {"sesi": [], "mulai": w, "pelaksana": kunci[0], "akhir": w, "langkah": [],
-                                      "sekarang": None}
+                                      "sekarang": None, "akt": deque(maxlen=AKT_MAKS)}
             self.misi_urut.append(nb)
             self._ev(self.ev_log, w, self.koord, self._k31, None, misi=nb)  # K3-1 (C4: sesi pertama)
         else:
@@ -927,24 +1295,26 @@ class Generator:
             except (OSError, ValueError, RecursionError):
                 galat.add(GALAT_NOMOR)
                 return None
-        maks, ubah = max(reg.values(), default=0), False
-        for n in self.misi_urut:
-            if n not in reg:
-                maks += 1
-                reg[n] = maks
-                ubah = True
-        if ubah and self.nomor is not None:
+        return reg if self._nomori(reg, [n for n in self.misi_urut if n not in reg], galat) else None
+
+    def _nomori(self, reg, baru, galat):
+        """Beri nomor berurutan pada kunci `baru` lalu simpan ke berkas; False (+ galat) bila gagal tulis."""
+        maks = max(reg.values(), default=0)
+        for n in baru:
+            maks += 1
+            reg[n] = maks
+        if baru and self.nomor is not None:
             try:
                 self._tulis_registri(reg)
-            except OSError:
+            except (OSError, ValueError):
                 galat.add(GALAT_NOMOR)
-                return None
-        return reg
+                return False
+        return True
 
     def _tulis_registri(self, reg):
         os.makedirs(os.path.dirname(self.nomor) or ".", mode=0o750, exist_ok=True)
         tmp = self.nomor + ".tmp"
-        teks = json.dumps({"versi": 1, "nomor": dict(sorted(reg.items(), key=lambda x: x[1]))}, indent=1) + "\n"
+        teks = json.dumps({"versi": 1, "nomor": dict(sorted(reg.items(), key=lambda x: x[1]))}, indent=1, allow_nan=False) + "\n"
         # ensure_ascii (bawaan): nama berkas non-UTF-8 (surrogateescape) tetap tertulis sah dan terbaca ulang sama
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o640)
         try:
@@ -1041,7 +1411,8 @@ class Generator:
         self.misi_rec, self.misi_pem, self.misi_info, self.misi_id, self.sub_misi = [], {}, {}, {}, {}
         self.misi_dimuat, self.ev_k3 = set(), []
         reg = self._registri(galat)  # B2: dibaca tiap siklus agar registri rusak selalu menjadi galat
-        if not self.misi_sesi:
+        self.qc_pelaku = {}
+        if not self.misi_sesi and not self.k_sesi:
             return
         _, hd, per_nama = self._indeks_brief()
         for n, m in self.misi_sesi.items():
@@ -1070,33 +1441,39 @@ class Generator:
                     anak.setdefault(a, set()).add(n)
                     induk.setdefault(n, a)  # leluhur terdekat
                 cur = self._ppid(cur, cache)
-        lock_brief = {}
+        lock_brief, lock_sel = {}, set()
         for kunci in sorted(self.lock):
-            if self.lock[kunci]["brief"]:
-                lock_brief.setdefault(self.lock[kunci]["brief"], self.lock[kunci]["slug"])
-        hidup = set(proses_misi.values())
+            r = self.lock[kunci]
+            if r["brief"]:
+                lock_brief.setdefault(r["brief"], r["slug"])
+                if r["selesai"]:
+                    lock_sel.add(r["brief"])
+        jalan_p = {p for pr in self.proses for p in pr["profil"]}
+        # snapshot jalan-*.json basi (final=false) tidak dipercaya: wajib ada proses profil TL itu
+        hidup = set(proses_misi.values()) | {n for n, r in self.run_brief.items() if n in self.misi_sesi
+                                              and r["status"] == "berjalan" and not r["final"]
+                                              and r["tl"] == self.misi_sesi[n]["pelaksana"] and r["tl"] in jalan_p}
+        qc = self._qc(galat, per_nama)
+        ke_kartu = self._tautan_kartu()
         for n, m in self.misi_sesi.items():
-            lap = self._laporan(n)
-            if n in hidup:
-                st, al, sel = ("menunggu", "misi-lain", None) if n in anak else ("jalan", None, None)
-            elif n in lock_brief:
-                st, al, sel = "menunggu", ("review" if lap else "gantung"), None
-            else:
-                st, al, sel = ("selesai", None, lap) if lap else ("berakhir", None, m["akhir"])
+            run = self.run_brief.get(n)
+            st, al, sel = self._status_misi(n, m, run, self._laporan(n), hidup, anak, lock_brief, lock_sel)
             if sel is not None and sel.date() != t.date():
                 continue
             pel = m["pelaksana"]
             pem, pem_id, rantai = self.misi_info[n]
             h = per_nama.get(n)
-            proj = lock_brief.get(n) or self._proyek_berkas(n, pel)
+            proj = lock_brief.get(n) or self._proyek_berkas(n, pel) or self._proyek_header(h)
             nproj = self._nama(proj) if proj else None
             sk = m["sekarang"]
             tl = pel in self.tl
+            langkah = sorted(m["langkah"] + self._langkah_handoff(n, pel, h, run, m["mulai"], sel or t), key=lambda x: x[0])
             self.misi_rec.append({
                 "id": self.misi_id[n], "nomor": reg[n],
                 "judul": ((judul_dari(h, {lock_brief.get(n), self._proyek_berkas(n, pel)}) if tl and proj else judul_dari(h))
                           if h else None)
                          or (self._judul_berkas(n, pel) if tl else None)  # J-2
+                         or self._judul_p15(n, pel, proj, h)  # tanpa H1: project + topik nama berkas
                          or (f"Pekerjaan {nproj}" if tl and proj else None),  # §3.5: TL kosong → Pekerjaan
                 "project": proj, "project_nama": nproj, "pemberi": pem, "pemberi_id": pem_id, "pelaksana_id": pel,
                 "pelaksana": self.nama.get(pel) or pel.capitalize(), "rantai": rantai, "status": st, "alasan": al,
@@ -1104,17 +1481,166 @@ class Generator:
                                         key=lambda i: int(i[2:])),
                 "induk_misi": self.misi_id[induk[n]] if n in hidup and n in induk else None,
                 "mulai": iso(m["mulai"]), "selesai": iso(sel) if sel else None,
-                "langkah": [{"waktu": iso(x), "label": lb} for x, lb in m["langkah"]], "langkah_total": None,
+                "langkah": [{"waktu": iso(x), "label": lb} for x, lb in langkah], "langkah_total": None,
                 "langkah_sekarang": (sk[1] + (f" · {nproj}" if proj else "")) if sk else None,
-                "langkah_waktu": iso(sk[0]) if sk else None, "subagen": [], "spawn_kuota": self._kuota(pel), "_n": n,
-                "_sel": sel})
+                "langkah_waktu": iso(sk[0]) if sk else None, "subagen": [], "spawn_kuota": self._kuota(pel),
+                "jenis": "pengerja", "anak": [], "jalan": self._info_jalan(run) if run else None,
+                "qc": {"hasil": qc[n]["hasil"], "waktu": iso(qc[n]["waktu"])} if n in qc else None,
+                "aktivitas": self._akt(m["akt"], sel), "_n": n, "_sel": sel})
+            if n in qc:
+                self.qc_pelaku[n] = qc[n]["oleh"] if qc[n]["oleh"] in self.nama else self.koord
             self.misi_dimuat.add(n)
+        self._kartu(t, reg, ke_kartu, galat)
         self._subagen(t, galat)
         aktif = lambda r: r["status"] in ("jalan", "menunggu")
         self.misi_rec.sort(key=lambda r: (0, r["status"] != "menunggu", r["mulai"], r["nomor"]) if aktif(r)
                            else (1, -r["_sel"].timestamp(), "", r["nomor"]))
         for r in self.misi_rec:
             del r["_n"], r["_sel"]
+
+    @staticmethod
+    def _akt(daftar, sel):
+        """Keluaran `aktivitas`: urut waktu naik, terbatas sampai waktu selesai misi bila ada."""
+        return [{"waktu": iso(w), "tool": tl, "teks": tk} for w, tl, tk in daftar if sel is None or w <= sel]
+
+    def _status_misi(self, n, m, run, lap, hidup, anak, lock_brief, lock_sel):
+        """(status, alasan, waktu selesai) misi pengerja. Proses hidup → jalan; lock ada → menunggu (review bila run selesai /
+        laporan ada / lock `selesai=`, selain itu gantung); tanpa lock: run selesai → selesai, run gagal/timeout/dihentikan →
+        berakhir + alasan; tanpa run: fallback `<brief>.laporan.txt`."""
+        if n in hidup:
+            return ("menunggu", "misi-lain", None) if n in anak else ("jalan", None, None)
+        if n in lock_brief:
+            sudah = (run and run["status"] == "selesai") or lap or n in lock_sel
+            return "menunggu", ("review" if sudah else "gantung"), None
+        if run:
+            if run["status"] == "selesai":
+                return "selesai", None, run["selesai"] or self.lepas_ts.get(run["kunci"].replace("/", "--")) or m["akhir"]
+            return "berakhir", (run["status"] if run["status"] != "berjalan" else None), run["selesai"] or m["akhir"]
+        return ("selesai", None, lap) if lap else ("berakhir", None, m["akhir"])
+
+    def _proyek_header(self, h):
+        """Slug dari baris `Project: <slug>` header brief (brief P1.5 tanpa H1)."""
+        for b in h or ():
+            m = re.match(r"\s*Project:\s*([a-z0-9][a-z0-9_-]{0,63})(?=[\s/.,;]|$)", b)
+            if m:
+                return m.group(1)
+        return None
+
+    def _judul_p15(self, n, pel, proj, h):
+        """Brief tanpa H1: "<nama project> — <topik>"; topik = sisa nama berkas sesudah tanggal (+ pelaksana) dan slug project."""
+        if not proj or (h and h[0].startswith("# ")):
+            return None
+        m = re.fullmatch(self.pola_brief.replace("{pelaksana}", re.escape(pel)), n)
+        sisa = m.group("sisa") if m else re.sub(r"^\d{4}-\d{2}-\d{2}-", "", n[:-3])
+        topik = sisa[len(proj) + 1:] if sisa.startswith(proj + "-") else ("" if sisa == proj else sisa)
+        return saring(f"{self._nama(proj)} — {topik.replace('-', ' ')}")[:200] if topik else None
+
+    def _langkah_handoff(self, n, pel, h, run, mulai, akhir):
+        """B7 dari handoff/<kunci-datar>.md: nama dari baris `Handoff:` brief, kunci run, atau nama lock; entri pelaksana
+        dengan mulai misi ≤ waktu ≤ akhir misi (selesai, atau sekarang bila aktif) → [(waktu, label)]."""
+        nama = [os.path.basename(m.group(1)) for m in (re.match(r"\s*Handoff:\s*(\S+)", b) for b in h or ()) if m]
+        nama += [run["kunci"].replace("/", "--") + ".md"] if run else []
+        nama += [k + ".md" for k, l in self.lock.items() if l["brief"] == n]
+        for nb in nama:
+            e = self._entri_handoff(nb)
+            if e:
+                return [(w, LABEL.get(kt, "Kemajuan dicatat")) for w, tl, kt in e if tl == pel and mulai <= w <= akhir]
+        return []
+
+    def _qc(self, galat, per_nama):
+        """Verdict QC → {brief: verdict terbaru}. Aturan penautan (pasti atau abaikan): topik berkas verdict (sesudah
+        `YYYYMMDD-HHMM-`) sama dengan / diawali / diakhiri / memuat (batas `-`) salah satu pengenal misi (kunci run, slug
+        `Project:`/berkas, nama brief tanpa .md; ≥ 4 karakter), atau teks `brief` verdict memuat nama berkas brief. Verdict
+        yang cocok > 1 misi hanya ditautkan ke misi yang nama berkasnya disebut di `brief` verdict; selain itu diabaikan.
+        Hanya misi yang mulai ≤ waktu verdict yang jadi kandidat (disaring SEBELUM menghitung ambiguitas)."""
+        vs = self._baca_verdict(galat)
+        if not vs:
+            return {}
+        ids = {}
+        for n, m in self.misi_sesi.items():
+            run = self.run_brief.get(n)
+            cand = (run["kunci"].replace("/", "-") if run else None, self._proyek_header(per_nama.get(n)),
+                    self._proyek_berkas(n, m["pelaksana"]), n[:-3])
+            ids[n] = {i.lower() for i in cand if i and len(i) >= 4}
+        hasil = {}
+        for v in vs:
+            tp = v["topik"].lower()
+            cocok = [n for n, xs in ids.items() if v["waktu"] >= self.misi_sesi[n]["mulai"] and (n in v["brief"] or any(
+                tp == i or tp.startswith(i + "-") or tp.endswith("-" + i) or f"-{i}-" in tp for i in xs))]  # waktu dulu, baru ambiguitas
+            if len(cocok) > 1:
+                cocok = [n for n in cocok if n in v["brief"]]
+            if len(cocok) == 1 and (cocok[0] not in hasil or v["waktu"] > hasil[cocok[0]]["waktu"]):
+                hasil[cocok[0]] = v
+        return hasil
+
+    def _tautan_kartu(self):
+        """Misi pengerja → kunci card koordinator yang meluncurkannya (card paling awal): brief sama, atau kunci run sama,
+        atau (hermes -p tanpa brief) pelaksana sama dan misi mulai 0–10 menit sesudah peluncuran. Peluncuran dicatat di
+        card yang aktif saat itu, jadi tiap card hanya memuat peluncuran di jendela waktunya sendiri."""
+        hasil = {}
+        for s in sorted((c for cs in self.k_sesi.values() for c in cs), key=lambda c: c["mulai"]):
+            for w, tl, kunci, brief in s["luncur"]:
+                for n, m in self.misi_sesi.items():
+                    run = self.run_brief.get(n)
+                    if n in hasil or m["pelaksana"] != tl:
+                        continue
+                    if brief:
+                        ok = brief == n or bool(kunci and run and run["kunci"] == kunci)
+                    else:
+                        ok = timedelta(seconds=-5) <= m["mulai"] - w <= timedelta(minutes=10)
+                    if ok:
+                        hasil[n] = s["key"]
+        return hasil
+
+    @staticmethod
+    def _status_kartu(t, s, anak):
+        """(status, alasan, waktu selesai, anak aktif) satu card: selesai = sudah dibalas + diam ≥ DIAM + semua anak
+        selesai/berakhir (waktu = max(baris terakhir, selesai anak)); menunggu = diam ≥ DIAM tetapi ada anak aktif;
+        berakhir = tanpa balasan, tanpa anak aktif, diam ≥ BASI (waktu = baris terakhir); selain itu jalan."""
+        aktif_anak = [r for r in anak if r["status"] in ("jalan", "menunggu")]
+        diam = max(0.0, (t - s["akhir"]).total_seconds())
+        if aktif_anak and diam >= DIAM:
+            return "menunggu", "anak", None, aktif_anak
+        if s["reply"] and diam >= DIAM and not aktif_anak:
+            return "selesai", None, max([s["akhir"]] + [r["_sel"] for r in anak if r["_sel"]]), aktif_anak
+        if not s["reply"] and diam >= BASI and not aktif_anak:
+            return "berakhir", None, s["akhir"], aktif_anak
+        return "jalan", None, None, aktif_anak
+
+    def _kartu(self, t, reg, ke_kartu, galat):
+        """Card permintaan koordinator per permintaan (docs/misi.md), aturan di _status_kartu. Dimuat bila aktif (jalan /
+        menunggu, berapa pun umurnya) atau selesai/berakhir hari ini; HANYA card dimuat yang diberi nomor registri.
+        Sid yang semua card-nya sudah selesai/berakhir > PANGKAS dibuang dari memori (batas pertumbuhan)."""
+        pengerja = [r for r in self.misi_rec if r["jenis"] == "pengerja"]
+        dimuat = []
+        for sid in list(self.k_sesi):
+            hitung = []
+            for s in self.k_sesi[sid]:
+                anak = [r for r in pengerja if ke_kartu.get(r["_n"]) == s["key"]]
+                hitung.append((s, anak, *self._status_kartu(t, s, anak)))
+            if all(h[2] not in ("jalan", "menunggu") and t - h[0]["akhir"] > PANGKAS for h in hitung):
+                del self.k_sesi[sid]
+                continue
+            dimuat += [h for h in hitung if h[2] in ("jalan", "menunggu") or h[4].date() == t.date()]
+        dimuat.sort(key=lambda h: h[0]["mulai"])
+        if not self._nomori(reg, [h[0]["key"] for h in dimuat if h[0]["key"] not in reg], galat):
+            return  # gagal simpan registri: tanpa card siklus ini (galat sudah dicatat)
+        id_kartu = {}
+        for s, anak, st, al, sel, aktif_anak in dimuat:
+            key, nomor = s["key"], reg[s["key"]]
+            id_kartu[key] = id_misi(nomor)
+            self.misi_rec.append({
+                "id": id_misi(nomor), "nomor": nomor, "judul": s["judul"], "project": None, "project_nama": None,
+                "pemberi": s["pemberi"], "pemberi_id": s["pemberi_id"], "pelaksana_id": self.koord,
+                "pelaksana": self.nama_koord, "rantai": self._rantai(self.koord, s["pemberi_id"]), "status": st, "alasan": al,
+                "menunggu_misi": sorted((r["id"] for r in aktif_anak), key=lambda i: int(i[2:])), "induk_misi": None,
+                "mulai": iso(s["mulai"]), "selesai": iso(sel) if sel else None, "langkah": [], "langkah_total": None,
+                "langkah_sekarang": s["kat"], "langkah_waktu": iso(s["akhir"]), "subagen": [], "spawn_kuota": None,
+                "jenis": "permintaan", "anak": sorted((r["id"] for r in anak), key=lambda i: int(i[2:])), "jalan": None,
+                "qc": None, "aktivitas": self._akt(s["akt"], sel), "_n": key, "_sel": sel})
+        for r in pengerja:  # pengerja tanpa induk proses → induk = card koordinator yang meluncurkannya
+            if r["induk_misi"] is None and ke_kartu.get(r["_n"]) in id_kartu:
+                r["induk_misi"] = id_kartu[ke_kartu[r["_n"]]]
 
     def _subagen(self, t, galat):
         """B8 + K3-2..4: sub-agen per misi dimuat dari state.db profil pelaksana; peristiwa K3 hari ini."""
@@ -1128,7 +1654,8 @@ class Generator:
 
         per_profil = {}
         for r in self.misi_rec:
-            per_profil.setdefault(r["pelaksana_id"], []).append(r)
+            if r["jenis"] == "pengerja":
+                per_profil.setdefault(r["pelaksana_id"], []).append(r)
         for p in sorted(per_profil):
             sids = sorted({s for r in per_profil[p] for _, s in self.misi_sesi[r["_n"]]["sesi"]})
             baris = self._sesi_db(p, sids)
@@ -1148,6 +1675,9 @@ class Generator:
                         self.sub_misi[(p, sid)] = n
                         k3((n, "spawn", sid), a, p, f"{r['pelaksana']} men-spawn sub-agen ke-{i} · {r['id']}", n)
                         k3((n, "akhir-sub", sid), z, p, f"Sub-agen ke-{i} {r['pelaksana']} selesai · {r['id']}", n)
+                if r["qc"]:
+                    k3((n, "qc", r["qc"]["waktu"]), parse_waktu(r["qc"]["waktu"]), self.qc_pelaku[n],
+                       f"QC: {r['qc']['hasil']} {r['id']}", n)
                 if r["status"] in ("selesai", "berakhir"):
                     k3((n, r["status"], r["selesai"]), r["_sel"], p, f"{r['pelaksana']} menyelesaikan {r['id']}"
                        if r["status"] == "selesai" else f"{r['id']} berakhir tanpa laporan", n)
@@ -1179,16 +1709,22 @@ class Generator:
         self.idx = None  # indeks brief dibangun ulang (malas) tiap siklus
         self._baca_agen(galat)  # membaca conf/tim.json lebih dulu: sumber dan identitas bergantung padanya
         self.akar_brief = os.path.realpath(self.dir_brief)
+        self.hari_ini = t.replace(hour=0, minute=0, second=0, microsecond=0)
         self._baca_peta(galat)
         self._baca_proses(galat)
         self._baca_lock(t, galat)
+        self._baca_jalan(galat)
+        self._baca_riwayat_lock(galat)
+        self._baca_guard(galat)
         kerangka = self._kerangka()  # tugas (a)/(b): dipakai juga untuk pemilik peristiwa baris log baru
         self._baca_log(galat, kerangka)
         self._misi(t, galat)
         self.galat = frozenset(galat)
         keadaan = self._keadaan(t, kerangka)
         # semua berkas dibangun dulu; pengecualian di sini = tidak ada berkas yang ditulis siklus ini
-        isi = {p: json.dumps(self._berkas(p, t, keadaan), ensure_ascii=False, separators=(",", ":")) + "\n"
+        # allow_nan=False: NaN/Infinity yang lolos dari sumber → ValueError = siklus gagal (Lapor mencatat nama kelas, loop
+        # lanjut, berkas lama dibiarkan) alih-alih JSON tidak sah di browser
+        isi = {p: json.dumps(self._berkas(p, t, keadaan), ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n"
                for p in self.penonton}
         self._tulis(isi)
 
@@ -1224,25 +1760,69 @@ class Generator:
                 k["langkah_terakhir"] = terakhir[1] + (f" · {k['project_nama']}" if k["project"] else "")
                 k["langkah_waktu"] = iso(terakhir[0])
         status_koord = self._status_koord(t)
+        if any(r["jenis"] == "permintaan" and r["status"] == "jalan" for r in self.misi_rec) and status_koord == "bebas":
+            status_koord = "jalan"  # card permintaan jalan = koordinator bekerja walau barisnya > 2 menit lalu
         tugas = kerangka + self._tugas_koord(t, kerangka, status_koord)
         tugas.sort(key=lambda k: (k["status"] != "menunggu", k["mulai"] is None, k["mulai"] or "", k["id"]))
         tugas_agen = {a["id"]: [] for a in self.agen}
         for k in tugas:
-            tugas_agen[k["pengerja_id"]].append(k)
+            tugas_agen.setdefault(k["pengerja_id"], []).append(k)  # agen tersembunyi tetap punya tugas bila sedang bekerja
         jalan = {p for pr in self.proses for p in pr["profil"]}
         punya_lock = {rec["tl"] for rec in self.lock.values()}
         status = {self.koord: status_koord}
-        for a in self.tim:
-            status[a] = "jalan" if a in jalan else ("menunggu" if a in punya_lock else "bebas")
+        misi_jalan = {r["pelaksana_id"] for r in self.misi_rec if r["status"] == "jalan"}
+        misi_tunggu = {r["pelaksana_id"] for r in self.misi_rec if r["status"] == "menunggu"}
+        for a in self.tim:  # misi aktif ikut menentukan: TL dengan misi jalan = jalan, misi menunggu = menunggu
+            status[a] = "jalan" if a in jalan or a in misi_jalan else ("menunggu" if a in punya_lock or a in misi_tunggu else "bebas")
         aktif = {a: iso(self.tim_terakhir[a][0]) if a in self.tim_terakhir else None for a in self.tim}
         aktif[self.koord] = iso(self.koord_terakhir[0]) if self.koord_terakhir else None
         awal_hari = t.replace(hour=0, minute=0, second=0, microsecond=0)
         self.ev_log = [e for e in self.ev_log if e.waktu >= awal_hari]
         self.ev_lock = [e for e in self.ev_lock if e.waktu >= awal_hari]
-        riwayat = sorted((e for e in self.ev_log + self.ev_lock + self.ev_k3 if e.waktu.date() == t.date()),
+        ev_jsonl = self._ev_jsonl(awal_hari, t)
+        riwayat = sorted((e for e in self.ev_log + self.ev_lock + self.ev_k3 + ev_jsonl if e.waktu.date() == t.date()),
                          key=lambda e: (e.waktu, e.seq))
         riwayat = [x for x in map(self._render, riwayat) if x is not None]
         return status, aktif, tugas, tugas_agen, riwayat
+
+    def _pemilik_guard(self, e, t):
+        """Pemilik blok guard = pemberi misi agen itu yang aktif PADA WAKTU peristiwa (mulai ≤ waktu ≤ selesai / sekarang);
+        tidak tepat satu pemilik → pemilik tim (fail-closed)."""
+        pem = {r["pemberi_id"] or self.pemilik for r in self.misi_rec if r["pelaksana_id"] == e.pelaku
+               and parse_waktu(r["mulai"]) <= e.waktu <= (parse_waktu(r["selesai"]) if r["selesai"] else t)}
+        return pem.pop() if len(pem) == 1 else self.pemilik
+
+    def _pemilik_lock(self, kunci):
+        """Pemilik peristiwa riwayat lock = pemilik misi yang briefnya cocok dengan lock (kunci run / brief file lock) bila
+        tepat satu pemilik; selain itu pemilik tim (fail-closed)."""
+        datar = kunci.replace("/", "--")
+        brief = {n for n, r in self.run_brief.items() if r["kunci"] in (kunci, datar)}
+        brief |= {l["brief"] for k, l in self.lock.items() if k == datar and l["brief"]}
+        pem = {self.misi_pem[n] for n in brief if n in self.misi_pem}
+        return pem.pop() if len(pem) == 1 else self.pemilik
+
+    def _ev_jsonl(self, awal_hari, t):
+        """Peristiwa riwayat lock (tanpa duplikat dengan peristiwa lock in-memory: pelaku+teks sama ≤ 30 menit) dan guard
+        (blok agen+guard+kategori sama dalam 5 menit = satu peristiwa). Pemilik ditetapkan di sini (_pemilik_guard/_lock)."""
+        semua, lock_mem, terakhir = [], self.ev_lock, {}
+        for daftar in self.ev_jsonl.values():
+            daftar[:] = [e for e in daftar if e.waktu >= awal_hari]
+            semua += daftar
+        hasil = []
+        for e in sorted(semua, key=lambda e: (e.waktu, e.seq)):
+            if e.kunci is not None and e.kunci[0] == "\0guard":
+                k = (e.pelaku, e.teks)  # teks memuat nama guard + kategori
+                if k in terakhir and (e.waktu - terakhir[k]).total_seconds() < 300:
+                    continue
+                terakhir[k] = e.waktu
+                e.pemilik = self._pemilik_guard(e, t)
+            else:
+                e.pemilik = self._pemilik_lock(e.kunci[1]) if e.kunci is not None else self.pemilik
+                if any(x.pelaku == e.pelaku and x.teks == e.teks and abs((x.waktu - e.waktu).total_seconds()) <= 1800
+                       for x in lock_mem):
+                    continue
+            hasil.append(e)
+        return hasil
 
     def _berkas(self, p, t, keadaan):
         status, aktif, tugas, tugas_agen, riwayat = keadaan
@@ -1309,6 +1889,7 @@ class Generator:
         milik = [r for r in self.misi_rec if r["pemberi_id"] == p]
         ids = {r["id"] for r in milik}
         return [dict(r, menunggu_misi=[x for x in r["menunggu_misi"] if x in ids],
+                     anak=[x for x in r["anak"] if x in ids],
                      induk_misi=r["induk_misi"] if r["induk_misi"] in ids else None) for r in milik], ids
 
     def _tulis(self, isi):

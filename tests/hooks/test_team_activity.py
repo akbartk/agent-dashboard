@@ -106,9 +106,10 @@ class TestFormatBaris(DasarHook):
 
     def test_tool_tim_metadata_saja(self):
         b = self.satu_baris(payload_tool())
-        self.assertEqual(set(b), {"type", "role", "name", "profile", "sid", "tool", "blocked", "ts"})
-        self.assertEqual((b["type"], b["role"], b["name"], b["profile"], b["sid"], b["tool"], b["blocked"]),
-                         ("tool", "tim", "Agen Satu", "satu", "sid-1", "terminal", False))
+        self.assertEqual(set(b), {"type", "role", "name", "profile", "sid", "tool", "ts"})
+        self.assertEqual((b["type"], b["role"], b["name"], b["profile"], b["sid"], b["tool"]),
+                         ("tool", "tim", "Agen Satu", "satu", "sid-1", "terminal"))
+        self.assertNotIn("blocked", b)  # Hermes tidak memberi info blok ke hook; sumber blok = log guard
         self.assertRegex(b["ts"], RE_TS)
 
     def test_msg_tim_metadata_saja(self):
@@ -206,8 +207,8 @@ class TestKoordinator(DasarHook):
 
     def test_tool(self):
         b = self.satu_baris(payload_tool(profile="koord"))
-        self.assertEqual(set(b), {"type", "role", "name", "sid", "tool", "blocked", "ts"})
-        self.assertEqual((b["role"], b["name"], b["tool"], b["blocked"]), ("owner", "Pemilik Contoh", "terminal", False))
+        self.assertEqual(set(b), {"type", "role", "name", "sid", "tool", "ts"})
+        self.assertEqual((b["role"], b["name"], b["tool"]), ("owner", "Pemilik Contoh", "terminal"))
 
     def test_balasan_tanpa_isi(self):
         b = self.satu_baris(payload_balas(jawaban="isi balasan rahasia"))

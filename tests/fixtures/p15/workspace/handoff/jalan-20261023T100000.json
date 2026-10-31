@@ -1,0 +1,18 @@
+{
+ "versi": 1,
+ "mulai": "2026-10-23T10:00:00+07:00",
+ "selesai": "2026-10-23T10:05:00+07:00",
+ "tugas": [
+  {
+   "kunci": "lama",
+   "tl": "alfa",
+   "brief": "/workspace/brief/lama.md",
+   "laporan": "/workspace/handoff/lama.txt",
+   "mulai": "2026-10-23T10:00:00+07:00",
+   "selesai": "2026-10-23T10:05:00+07:00",
+   "durasi_detik": 300.0,
+   "rc": 0,
+   "status": "selesai"
+  }
+ ]
+}

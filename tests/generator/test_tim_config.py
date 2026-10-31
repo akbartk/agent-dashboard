@@ -188,7 +188,7 @@ class UjiRingkasanAktivitas(DasarTim):
 
 
 class UjiBerkasConf(unittest.TestCase):
-    """Nilai g7 `conf/tim.json` persis KONTRAK §2 + `conf/tim.example.json` placeholder; `conf/agen.json` dihapus."""
+    """Nilai g7 `conf/tim.json` persis KONTRAK §2 (+ P1.5 31 Okt 2026: `tl`, `sembunyikan`, `verdict`, `guard`, catat_* true untuk judul card) + `conf/tim.example.json` placeholder; `conf/agen.json` dihapus."""
 
     def test_agen_json_dihapus(self):
         self.assertFalse((ROOT / "conf" / "agen.json").exists())
@@ -200,7 +200,7 @@ class UjiBerkasConf(unittest.TestCase):
         self.assertEqual((["akbar"], "akbar", "default", "arsa"), (c["penonton"], c["pemilik"], c["koordinator"], c["cto"]))
         ag = {"default": ("Lala", "Koordinator", ["akbar"], "koordinasi"), "arsa": ("Arsa", "CTO", ["default"], "teknik"),
               "sofi": ("Sofi", "Riset dan regulasi", ["default"], "riset"), "g7-qc": ("G7-QC", "QA/QC", ["default"], "qa")}
-        ag.update({f"g7-tl{i}": (f"G7-TL{i}", "Tech Lead", ["arsa"], "teknik") for i in range(1, 6)})
+        ag.update({f"g7-tl{i}": (f"G7-TL{i}", "Tech Lead", ["default"] if i <= 2 else ["arsa"], "teknik") for i in range(1, 6)})
         self.assertEqual(ag, {i: (e["nama"], e["peran"], e["induk"], e["ruang"]) for i, e in c["agen"].items()})
         self.assertEqual(["default", "arsa", "sofi", "g7-tl1", "g7-tl2", "g7-tl3", "g7-tl4", "g7-tl5", "g7-qc"], list(c["agen"]))  # urutan tampil
         s = c["sumber"]
@@ -209,11 +209,15 @@ class UjiBerkasConf(unittest.TestCase):
                           "/data/hermes-agent/data/profiles", "/data/hermes-agent/data/agent-hooks/state/activity.jsonl", "/proc"),
                          (s["workspace"], s["workspace_kontainer"], s["brief"], s["lock"], s["handoff"], s["profil"],
                           s["activity"], s["proc"]))
-        self.assertIn("belum tersedia", c["sumber"].get("_catatan", ""))
+        self.assertIn("P1.5", c["sumber"].get("_catatan", ""))
+        self.assertEqual((["g7-tl1", "g7-tl2", "arsa"], ["g7-tl3", "g7-tl4", "g7-tl5"]), (c["tl"], c["sembunyikan"]))
+        self.assertEqual(("/data/hermes-agent/workspace/g7-qc/verdict",
+                          ["/data/hermes-agent/data/agent-hooks/state/g7-tim-guard.jsonl",
+                           "/data/hermes-agent/data/agent-hooks/state/qc-gate-g7.jsonl"]), (s["verdict"], s["guard"]))
         self.assertEqual(("--", "mcp__obsidian__", "mcp__obsidian__setor", None),
                          (c["pola"]["lock_pemisah_subtugas"], c["tool"]["awalan_bank_dokumen"], c["tool"]["setor"],
                           c["tool"]["catat_progres"]))
-        self.assertEqual({"catat_teks": False, "teks_maks": 300, "catat_detail": False, "detail_maks": 1000}, c["aktivitas"])
+        self.assertEqual({"catat_teks": True, "teks_maks": 300, "catat_detail": True, "detail_maks": 1000}, c["aktivitas"])
         self.assertEqual(["menjalankan perintah di g7", "menjalankan perintah di bskdev", "mengakses R1"],
                          [e["teks"] for e in c["kategori_perintah"]])
 

@@ -1,0 +1,3 @@
+{"ts": "2026-10-31T08:15:00+07:00", "profile": "alfa", "sid": "A1", "tool": "terminal", "kategori": "rahasia", "keputusan": "blok", "isi_panjang": 10, "isi_sha256": "KANARI-hash", "perintah": "KANARI-argumen-guard"}
+{"ts": "2026-10-31T08:16:00+07:00", "profile": "alfa", "sid": "A1", "tool": "terminal", "kategori": "KANARI kategori tidak aman!!", "keputusan": "blok"}
+{"ts": "2026-10-31T08:17:00+07:00", "profile": "alfa", "sid": "A1", "tool": "terminal", "kategori": "ok", "keputusan": "izin"}

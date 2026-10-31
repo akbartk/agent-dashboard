@@ -1,5 +1,6 @@
 {
  "_catatan": "Contoh config tim (placeholder generik, skema versi 1). Salin ke conf/tim.json lalu isi nilai sebenarnya; kunci berawalan _ diabaikan pembaca. Lokasi dibaca: argumen --tim, variabel AD_TIM, lalu <akar>/conf/tim.json.",
+ "_catatan_hirarki": "cto opsional. tl = daftar eksplisit pemegang lock (bila ada, menggantikan aturan anak langsung cto). sembunyikan = id profil yang ada foldernya tetapi tidak ditampilkan di agen/peta.",
  "versi": 1,
  "orang": [
   {"id": "pemilik", "nama": "Nama Pemilik", "peran": "Pemilik tim", "induk": []}
@@ -8,6 +9,8 @@
  "pemilik": "pemilik",
  "koordinator": "koordinator",
  "cto": "cto",
+ "tl": ["tl-satu", "tl-dua"],
+ "sembunyikan": ["tl-lama"],
  "agen": {
   "koordinator": {"nama": "Nama Koordinator", "peran": "Koordinator", "induk": ["pemilik"], "ruang": "koordinasi"},
   "cto": {"nama": "Nama CTO", "peran": "CTO", "induk": ["koordinator"], "ruang": "teknik"},
@@ -17,7 +20,7 @@
   "qc": {"nama": "Nama QC", "peran": "QA/QC", "induk": ["koordinator"], "ruang": "qa"}
  },
  "sumber": {
-  "_catatan": "Path host (bukan path di dalam container). workspace_kontainer = awalan path di lock brief= yang diterjemahkan ke sumber.workspace. handoff belum dibaca generator (boleh null).",
+  "_catatan": "Path host (bukan path di dalam container). workspace_kontainer = awalan path di lock brief= yang diterjemahkan ke sumber.workspace. handoff = folder jalan-*.json peluncur + <kunci>.md (boleh null); verdict = folder verdict QC (boleh null); guard = daftar jsonl guard (boleh kosong).",
   "activity": "/path/ke/state/activity.jsonl",
   "profil": "/path/ke/data/profiles",
   "workspace": "/path/ke/workspace",
@@ -25,6 +28,8 @@
   "brief": "/path/ke/workspace/tim/brief",
   "lock": "/path/ke/workspace/tim/locks",
   "handoff": null,
+  "verdict": null,
+  "guard": [],
   "proc": "/proc"
  },
  "pola": {
